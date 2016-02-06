@@ -1,0 +1,16 @@
+/_build
+/cover
+/deps
+erl_crash.dump
+*.ez
+.DS_Store
+/target
+/classes
+/checkouts
+pom.xml
+pom.xml.asc
+*.jar
+*.class
+/.lein-*
+/.nrepl-port
+.hgignore
