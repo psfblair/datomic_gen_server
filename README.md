@@ -18,7 +18,12 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
      
         lein uberjar
   
-  3. Ensure datomic_gen_server is started before your application:
+  3. You may want to configure the default timeout values in the config.exs file,
+     which control the default amount of time the application waits for the JVM 
+     to start before crashing, and the default amount of time it waits for a 
+     reply from the JVM peer before crashing.
+     
+  4. Ensure datomic_gen_server is started before your application:
 
         def application do
           [applications: [:datomic_gen_server]]
