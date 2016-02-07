@@ -1,4 +1,30 @@
-defmodule Db do
+defmodule DatomicGenServer.Db do
+  # Interface functions with the GenServer
+  @type edn :: atom | boolean | number | String.t | tuple | [edn] | %{edn => edn} | MapSet.t(edn) 
+  
+  @spec q([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
+  def q(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(edn) do
+      {:ok, edn_str} -> 
+        case DatomicGenServer.q(edn_str, message_timeout_millis, timeout_on_call) do
+          %{ok: reply_str} -> Exdn.to_elixir(reply_str)
+          error -> error
+        end
+      parse_error -> parse_error
+    end
+  end
+  
+  @spec transact([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
+  def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(edn) do
+      {:ok, edn_str} -> 
+        case DatomicGenServer.transact(edn_str, message_timeout_millis, timeout_on_call) do
+          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          error -> error
+        end
+      parse_error -> parse_error
+    end
+  end
 
   def add, do: :"db/add"
   def retract, do: :"db/retract"

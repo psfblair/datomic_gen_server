@@ -1,8 +1,9 @@
 defmodule DatomicGenServer do
   use GenServer
+  require Logger
   
   @type datomic_message :: {:q, String.t} | {:transact, String.t} | {:exit}
-  @type datomic_result :: {:ok, String.t} | {:error, term}
+  @type datomic_result  :: {:ok, String.t} | {:error, term}
 
   defmodule ProcessState do
     defstruct port: nil, 
@@ -10,7 +11,7 @@ defmodule DatomicGenServer do
     @type t :: %ProcessState{port: port, message_wait_until_crash: non_neg_integer}
   end
   
-  @spec start_link(String.t, boolean, non_neg_integer, non_neg_integer) :: GenServer.on_start
+  @spec start_link(String.t, boolean, non_neg_integer | nil, non_neg_integer | nil) :: GenServer.on_start
   def start_link(db_uri, create? \\ false, startup_wait_millis \\ nil, default_message_timeout_millis \\ nil) do
     startup_wait = startup_wait_millis || Application.get_env(:datomic_gen_server, :startup_wait_millis)
     default_message_timeout = default_message_timeout_millis || Application.get_env(:datomic_gen_server, :message_wait_until_crash)
@@ -19,28 +20,22 @@ defmodule DatomicGenServer do
     GenServer.start_link(__MODULE__, params, name: __MODULE__)  
   end
 
-  @type edn :: atom | boolean | number | String.t | tuple | [edn] | %{edn => edn} | MapSet.t(edn) 
-  @spec q([term], non_neg_integer, non_neg_integer) :: datomic_result
-  def q(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+  @spec q(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
+  def q(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
-    case Exdn.from_elixir(edn) do
-      {:ok, edn_str} -> GenServer.call(__MODULE__, {{:q, edn_str}, message_timeout}, client_timeout)
-      parse_error -> parse_error
-    end
+    GenServer.call(__MODULE__, {{:q, edn_str}, message_timeout}, client_timeout)
   end
   
-  @spec transact([term], non_neg_integer, non_neg_integer) :: datomic_result
-  def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+  @spec transact(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
+  def transact(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
-    case Exdn.from_elixir(edn) do
-      {:ok, edn_str} -> GenServer.call(__MODULE__, {{:transact, edn_str}, message_timeout}, client_timeout)
-      parse_error -> parse_error
-    end
+    GenServer.call(__MODULE__, {{:transact, edn_str}, message_timeout}, client_timeout)
   end
 
-  @spec exit :: :ok
+  @spec exit :: {:stop, :normal}
   def exit() do
-    GenServer.cast(__MODULE__, {:exit})
+    _ = Logger.warn("exit called on DatomicGenServer.")
+    {:stop, :normal}
   end
   
   defp message_wait_times(message_timeout_millis, call_timeout_millis) do
@@ -50,7 +45,7 @@ defmodule DatomicGenServer do
     {message_timeout, call_timeout}
   end
 
-  @spec init({String.t, boolean, non_neg_integer, non_neg_integer}) :: {:ok, ProcessState.t}
+  @spec init({String.t, boolean, non_neg_integer | nil, non_neg_integer | nil}) :: {:ok, ProcessState.t}
   def init({db_uri, create?, startup_wait_millis, default_message_timeout_millis}) do
     # Trapping exits actually does what we want here - i.e., allows us to exit
     # if the Clojure process crashes on startup, using handle_info below.
@@ -64,7 +59,8 @@ defmodule DatomicGenServer do
     receive do
       _ -> {:ok, %ProcessState{port: port, message_wait_until_crash: default_message_timeout_millis}}
     after startup_wait_millis -> 
-      {:stop, :port_start_timed_out}
+      _ = Logger.error("DatomicGenServer port startup timed out after startup_wait_millis: [#{startup_wait_millis}]")
+      exit(:port_start_timed_out)
     end
   end
   
@@ -75,7 +71,7 @@ defmodule DatomicGenServer do
     {working_directory, command}
   end
   
-  @spec handle_call(datomic_message, {pid, tag :: term}, ProcessState.t) :: {:reply, datomic_result, ProcessState.t}
+  @spec handle_call(datomic_message, {pid, tag :: term}, ProcessState.t) :: {:reply, term, ProcessState.t}
   def handle_call(term, _, state) do
     port = state.port
     {datomic_operation, this_msg_timeout} = term
@@ -86,6 +82,7 @@ defmodule DatomicGenServer do
     result = receive do 
       {^port, {:data, b}} -> :erlang.binary_to_term(b) 
     after message_timeout -> 
+      _ = Logger.error("DatomicGenServer port unresponsive after message_timeout: [#{message_timeout}] with this_msg_timeout [#{this_msg_timeout}] and message_wait_until_crash [#{state.message_wait_until_crash}]")
       exit(:port_unresponsive)
     end
 
@@ -99,9 +96,19 @@ defmodule DatomicGenServer do
     {:noreply, state}
   end
 
-  # TODO Handle other info cases?
   @spec handle_info({:EXIT, port, term}, ProcessState.t) :: no_return
   def handle_info({:EXIT, _, _}, _) do
+    _ = Logger.warn("DatomicGenServer received exit message.")  
     exit(:port_terminated)
+  end
+  
+  # Not sure how to do spec for this catch-all case without Dialyzer telling me
+  # I have overlapping domains.
+  def handle_info(_, state), do: {:noreply, state}
+  
+  @spec terminate(GenServer.reason, state :: term) :: term
+  def terminate(_, _) do
+    # Normal shutdown; die ASAP
+    Process.exit(self, :normal)
   end
 end
