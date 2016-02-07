@@ -2,7 +2,8 @@ defmodule DatomicGenServer do
   use GenServer
   require Logger
   
-  @type datomic_message :: {:q, String.t} | {:transact, String.t} | {:exit}
+  @type datomic_message :: {:q, String.t} | {:transact, String.t}
+  @type datomic_call :: {datomic_message, non_neg_integer}
   @type datomic_result  :: {:ok, String.t} | {:error, term}
 
   defmodule ProcessState do
@@ -71,10 +72,10 @@ defmodule DatomicGenServer do
     {working_directory, command}
   end
   
-  @spec handle_call(datomic_message, {pid, tag :: term}, ProcessState.t) :: {:reply, term, ProcessState.t}
-  def handle_call(term, _, state) do
+  @spec handle_call(datomic_call, term, ProcessState.t) :: {:reply, datomic_result, ProcessState.t}
+  def handle_call(message, _, state) do
     port = state.port
-    {datomic_operation, this_msg_timeout} = term
+    {datomic_operation, this_msg_timeout} = message
     message_timeout = this_msg_timeout || state.message_wait_until_crash
     
     send(port, {self, {:command, :erlang.term_to_binary(datomic_operation)}})
@@ -90,9 +91,9 @@ defmodule DatomicGenServer do
   end
   
   @spec handle_cast(datomic_message, ProcessState.t) :: {:noreply, ProcessState.t}
-  def handle_cast(term, state) do
+  def handle_cast(message, state) do
     port = state.port
-    send(port, {self, {:command, :erlang.term_to_binary(term)}})
+    send(port, {self, {:command, :erlang.term_to_binary(message)}})
     {:noreply, state}
   end
 
@@ -106,7 +107,7 @@ defmodule DatomicGenServer do
   # I have overlapping domains.
   def handle_info(_, state), do: {:noreply, state}
   
-  @spec terminate(GenServer.reason, state :: term) :: term
+  @spec terminate(GenServer.reason, state :: ProcessState.t) :: true
   def terminate(_, _) do
     # Normal shutdown; die ASAP
     Process.exit(self, :normal)
