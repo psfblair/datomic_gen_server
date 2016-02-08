@@ -26,13 +26,13 @@
 (deftest test-handles-ping
   (testing "Can handle a ping message"
     (>!! in [:ping])
-    (is (= {:ok "#{}\n"} (<!! out)))))
+    (is (= [:ok "#{}\n"] (<!! out)))))
 
 (deftest test-round-trip
   (testing "Can transact and query data"
   
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
-    (is (= {:ok "#{}\n"} (<!! out)))
+    (is (= [:ok "#{}\n"] (<!! out)))
     
     (>!! in [:transact "[ {:db/id #db/id[:db.part/db]
                            :db/ident :person/name
@@ -41,21 +41,21 @@
                            :db/doc \"A person's name\"
                            :db.install/_attribute :db.part/db}]"])
     (let [ignore-edn-tags {:default #(identity [%1 %2])}
-          response-edn (:ok (<!! out))
+          response-edn (nth (<!! out) 1)
           edn-data (clojure.edn/read-string ignore-edn-tags response-edn)]
       (is (= 6 (count edn-data))))
       
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
     (let [query-result (<!! out)]
-      (is (contains? query-result :ok))
-      (is (not (= "#{}\n" (query-result :ok)))))))
+      (is (= (query-result 0) :ok))
+      (is (not (= "#{}\n" (query-result 1)))))))
 
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"
     (>!! in [:unknown "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
-    (is (contains? (<!! out) :error))))
+    (is (= (nth (<!! out) 0) :error))))
       
 (deftest test-garbled-messages
   (testing "Can handle garbled messages"
     (>!! in [:query "[:find ?c }"])
-    (is (contains? (<!! out) :error))))
+    (is (= (nth (<!! out) 0) :error))))

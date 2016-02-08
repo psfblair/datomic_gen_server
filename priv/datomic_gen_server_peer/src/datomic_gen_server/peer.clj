@@ -25,21 +25,19 @@
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
     @completed-future))
 
-; TODO Improve exception handling here.
-; Right now if the edn is ill-formed, the edn reader throws and everything blows up.
-; Distinguish being unable to handle a message from being unable to contact the server.
-; Handle unexpected messages too
-; Returns the state of the database, or nil if shut down.
+; Returns the result along with the state of the database, or nil if shut down.
+; Results are vectors starting with :ok or :error so that they go back to Elixir
+; as the corresponding tuples.
 (defn- process-message [message database connection]
   (try
     (match message
-      [:q edn] {:db database :result {:ok (q database edn)}}
+      [:q edn] {:db database :result [:ok (q database edn)]}
       [:transact edn] (let [{:keys [db-after tx-data]} (transact connection edn)]
-                        {:db db-after :result {:ok (prn-str tx-data)}})
-      [:ping] {:db database :result {:ok (prn-str #{})}}
+                        {:db db-after :result [:ok (prn-str tx-data)]})
+      [:ping] {:db database :result [:ok (prn-str #{})]}
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
-    (catch Exception e {:db database :result {:error e}})))
+    (catch Exception e {:db database :result [:error e]})))
 
 (defn- exit-loop [in out] 
   (do
