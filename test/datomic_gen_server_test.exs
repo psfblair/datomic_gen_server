@@ -31,4 +31,19 @@ defmodule DatomicGenServerTest do
     %{ok: result_str} = DatomicGenServer.q(query)
     assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
   end
+  
+  test "Handles garbled queries" do
+    query = "[:find ?c :wh?ere]"
+    %{error: query_result} = DatomicGenServer.q(query)
+    assert Regex.match?(~r/Exception/, query_result)
+  end
+  
+  test "Handles garbled transactions" do
+    data_to_add = """
+      [ { :db/ii #db/foo[:db.part/db]
+    """
+    %{error: transaction_result} = DatomicGenServer.transact(data_to_add)
+    assert Regex.match?(~r/Exception/, transaction_result)
+  end
+  
 end
