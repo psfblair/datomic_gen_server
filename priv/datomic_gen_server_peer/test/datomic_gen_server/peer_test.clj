@@ -24,7 +24,7 @@
 (use-fixtures :each db-fixture)
 
 (deftest test-handles-ping
-  (testing "Can handle unknown messages"
+  (testing "Can handle a ping message"
     (>!! in [:ping])
     (is (= {:ok "#{}\n"} (<!! out)))))
 
@@ -46,7 +46,9 @@
       (is (= 6 (count edn-data))))
       
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
-    (is (not (= {:ok "#{}\n"} (<!! out))))))
+    (let [query-result (<!! out)]
+      (is (contains? query-result :ok))
+      (is (not (= "#{}\n" (query-result :ok)))))))
 
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"
