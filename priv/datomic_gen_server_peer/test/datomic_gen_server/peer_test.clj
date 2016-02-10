@@ -29,7 +29,7 @@
     (is (= [:ok "#{}\n"] (<!! out)))))
 
 (deftest test-round-trip
-  (testing "Can transact and query data"
+  (testing "Can query and transact data"
   
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
     (is (= [:ok "#{}\n"] (<!! out)))
@@ -43,7 +43,18 @@
     (let [ignore-edn-tags {:default #(identity [%1 %2])}
           response-edn (nth (<!! out) 1)
           edn-data (clojure.edn/read-string ignore-edn-tags response-edn)]
-      (is (= 6 (count edn-data))))
+      (is (= java.lang.Long (type ((edn-data :db-before) :basis-t))))
+      ; TODO Can we get this somehow?
+      ; (is (= "test" ((edn-data :db-before) :db/alias)))
+      (is (= java.lang.Long (type ((edn-data :db-after) :basis-t))))
+      ; TODO Can we get this somehow?
+      ; (is (= "test" ((edn-data :db-after) :db/alias)))
+      (is (= 6 (count (edn-data :tx-data))))
+      (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :e))))
+      (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :a))))
+      (is (contains? (nth (edn-data :tx-data) 0) :v))
+      (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :tx))))
+      (is (= true ((nth (edn-data :tx-data) 0) :added))))
       
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
     (let [query-result (<!! out)]

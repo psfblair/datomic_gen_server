@@ -24,6 +24,23 @@
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
     @completed-future))
+  
+(defn- serialize-transaction-response [transaction-response]
+  (let [db-before (transaction-response :db-before)
+        before-basis-t (datomic/basis-t db-before)
+        db-after (transaction-response :db-before)
+        after-basis-t (datomic/basis-t db-after)
+        tx-data (transaction-response :tx-data)]
+    (prn-str 
+      { :db-before {:basis-t before-basis-t}
+        :db-after {:basis-t after-basis-t}
+        :tx-data (into [] (map serialize-datoms tx-data))
+        :tempids (transaction-response :tempids)
+      }))
+  )     
+
+(defn- serialize-datoms [datom]
+  {:a (.a datom) :e (.e datom) :v (.v datom) :tx (.tx datom) :added (.added datom) })
 
 ; Returns the result along with the state of the database, or nil if shut down.
 ; Results are vectors starting with :ok or :error so that they go back to Elixir
@@ -32,8 +49,8 @@
   (try
     (match message
       [:q edn] {:db database :result [:ok (q database edn)]}
-      [:transact edn] (let [{:keys [db-after tx-data]} (transact connection edn)]
-                        {:db db-after :result [:ok (prn-str tx-data)]})
+      [:transact edn] (let [result (transact connection edn)]
+                        {:db (result :db-after) :result [:ok (serialize-transaction-response result)]})
       [:ping] {:db database :result [:ok (prn-str #{})]}
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
