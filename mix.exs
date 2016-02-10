@@ -14,7 +14,7 @@ defmodule DatomicGenServer.Mixfile do
   #
   # Type "mix help compile.app" for more information
   def application do
-    [applications: [:logger]]
+    [applications: [:logger, :calendar]] # Calendar needed for edn conversions of #inst
   end
 
   # Dependencies can be Hex packages:
@@ -27,7 +27,7 @@ defmodule DatomicGenServer.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ { :exdn,    "~> 2.1.0" },
+    [ {:exdn,    "~> 2.1.1"},
       {:dialyxir, "~> 0.3", only: [:dev]}]
   end
 end

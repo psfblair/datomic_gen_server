@@ -7,18 +7,6 @@ defmodule DatomicGenServer.Db do
     case Exdn.from_elixir(edn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.q(edn_str, message_timeout_millis, timeout_on_call) do
-          %{ok: reply_str} -> Exdn.to_elixir(reply_str)
-          error -> error
-        end
-      parse_error -> parse_error
-    end
-  end
-  
-  @spec transact([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
-  def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    case Exdn.from_elixir(edn) do
-      {:ok, edn_str} -> 
-        case DatomicGenServer.transact(edn_str, message_timeout_millis, timeout_on_call) do
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
           error -> error
         end
@@ -26,7 +14,27 @@ defmodule DatomicGenServer.Db do
     end
   end
 
+  @spec transact([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
+  def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(edn) do
+      {:ok, edn_str} -> 
+        case DatomicGenServer.transact(edn_str, message_timeout_millis, timeout_on_call) do          
+          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          error -> error
+        end
+      parse_error -> parse_error
+    end
+  end
+  
+  # TODO Functions for retrieving parts of a transaction response
+  # TODO Entity call
+
   # Id/ident
+  @spec dbid(atom) :: {:tag, :"db/id", [atom]} 
+  def dbid(db_part) do
+    {:tag, :"db/id", [db_part]}
+  end
+
   @spec id :: :"db/id"
   def id, do: :"db/id"
   
@@ -127,40 +135,6 @@ defmodule DatomicGenServer.Db do
   @spec no_history :: :"db/noHistory"
   def no_history, do: :"db/noHistory"
   
-  # Keys used in transaction responses
-  @spec tx_data :: :"tx-data"
-  def tx_data, do: :"tx-data"
-
-  @spec db_after :: :"db-after"
-  def db_after, do: :"db-after"
-  
-  @spec db_before :: :"db-before"
-  def db_before, do: :"db-before"
-  
-  @spec db_alias :: :"db/alias"
-  def db_alias, do: :"db/alias"
-  
-  @spec basis_t :: :"basis-t"
-  def basis_t, do: :"basis-t"
-  
-  @spec tempids :: :"tempids"
-  def tempids, do: :"tempids"
-
-  @spec a :: :a
-  def a, do: :a
-  
-  @spec e :: :e
-  def e, do: :e
-  
-  @spec v :: :v
-  def v, do: :v
-  
-  @spec tx :: :tx
-  def tx, do: :tx
-
-  @spec added :: :added
-  def added, do: :added
-
   # Functions  
   @spec _fn :: :"db/fn"
   def _fn, do: :"db/fn"
