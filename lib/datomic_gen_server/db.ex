@@ -1,8 +1,7 @@
 defmodule DatomicGenServer.Db do
-  @type edn :: atom | boolean | number | String.t | tuple | [edn] | %{edn => edn} | MapSet.t 
   
   # Interface functions to the GenServer
-  @spec q([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
+  @spec q([Exdn.exdn], non_neg_integer | nil, non_neg_integer | nil) :: {:ok, Exdn.exdn} | {:error, term}
   def q(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     case Exdn.from_elixir(edn) do
       {:ok, edn_str} -> 
@@ -14,7 +13,7 @@ defmodule DatomicGenServer.Db do
     end
   end
 
-  @spec transact([edn], non_neg_integer | nil, non_neg_integer | nil) :: term
+  @spec transact([Exdn.exdn], non_neg_integer | nil, non_neg_integer | nil) :: {:ok, Exdn.exdn} | {:error, term}
   def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     case Exdn.from_elixir(edn) do
       {:ok, edn_str} -> 
@@ -193,41 +192,41 @@ defmodule DatomicGenServer.Db do
   end
 
   # Clauses
-  @spec not_clause([edn]) :: {:list, [edn]}
+  @spec not_clause([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def not_clause(inner_clause), do: datomic_expression(:not, [inner_clause])
 
-  @spec not_join_clause([{:symbol, atom},...], [edn]) :: {:list, [edn]}
+  @spec not_join_clause([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def not_join_clause(binding_list, inner_clause_list) do
     clauses_including_bindings = [ binding_list | inner_clause_list ]
     datomic_expression(:"not-join", clauses_including_bindings)
   end
 
-  @spec or_clause([edn]) :: {:list, [edn]}
+  @spec or_clause([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def or_clause(inner_clauses), do: datomic_expression(:or, inner_clauses)
 
   # Only for use inside or clauses; `and` is the default otherwise.
-  @spec and_clause([edn]) :: {:list, [edn]}
+  @spec and_clause([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def and_clause(inner_clauses), do: datomic_expression(:and, inner_clauses)
 
-  @spec or_join_clause([{:symbol, atom},...], [edn]) :: {:list, [edn]}
+  @spec or_join_clause([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def or_join_clause(binding_list, inner_clause_list) do
     clauses_including_bindings = [ binding_list | inner_clause_list ]
     datomic_expression(:"or-join", clauses_including_bindings)
   end
 
-  @spec pull_expression({:symbol, atom}, [edn]) :: {:list, [edn]}
+  @spec pull_expression({:symbol, atom}, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def pull_expression(entity_var, pattern_clauses) do
     datomic_expression(:pull, [entity_var, pattern_clauses])
   end
 
   # An expression clause is a Clojure list inside a vector.
-  @spec expression_clause(atom, [edn]) :: [{:list, [edn]}]
+  @spec expression_clause(atom, [Exdn.exdn]) :: [{:list, [Exdn.exdn]}]
   def expression_clause(function_symbol, remaining_expressions) do
     [ datomic_expression(function_symbol, remaining_expressions) ]
   end
 
   # An expression is a list starting with a symbol
-  @spec datomic_expression(atom, [edn]) :: {:list, [edn]}
+  @spec datomic_expression(atom, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   defp datomic_expression(symbol_atom, remaining_expressions) do
     clause_list = [{:symbol, symbol_atom} | remaining_expressions ]
     {:list, clause_list}

@@ -27,7 +27,7 @@ defmodule DatomicGenServer.Mixfile do
   #
   # Type "mix help deps" for more examples and options
   defp deps do
-    [ {:exdn,    "~> 2.1.1"},
+    [ {:exdn,    "~> 2.1.2"},
       {:dialyxir, "~> 0.3", only: [:dev]}]
   end
 end
