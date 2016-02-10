@@ -24,7 +24,10 @@
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
     @completed-future))
-  
+    
+(defn- serialize-datoms [datom]
+  {:a (.a datom) :e (.e datom) :v (.v datom) :tx (.tx datom) :added (.added datom) })
+
 (defn- serialize-transaction-response [transaction-response]
   (let [db-before (transaction-response :db-before)
         before-basis-t (datomic/basis-t db-before)
@@ -36,11 +39,7 @@
         :db-after {:basis-t after-basis-t}
         :tx-data (into [] (map serialize-datoms tx-data))
         :tempids (transaction-response :tempids)
-      }))
-  )     
-
-(defn- serialize-datoms [datom]
-  {:a (.a datom) :e (.e datom) :v (.v datom) :tx (.tx datom) :added (.added datom) })
+      })))     
 
 ; Returns the result along with the state of the database, or nil if shut down.
 ; Results are vectors starting with :ok or :error so that they go back to Elixir

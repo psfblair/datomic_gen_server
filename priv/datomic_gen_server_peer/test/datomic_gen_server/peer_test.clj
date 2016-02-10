@@ -54,7 +54,9 @@
       (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :a))))
       (is (contains? (nth (edn-data :tx-data) 0) :v))
       (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :tx))))
-      (is (= true ((nth (edn-data :tx-data) 0) :added))))
+      (is (= true ((nth (edn-data :tx-data) 0) :added)))
+      (is (= clojure.lang.PersistentArrayMap (type (edn-data :tempids))))
+      )
       
     (>!! in [:q "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
     (let [query-result (<!! out)]
