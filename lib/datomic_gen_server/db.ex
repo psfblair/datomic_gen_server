@@ -191,7 +191,7 @@ defmodule DatomicGenServer.Db do
     [ q?(placeholder_atom), {:symbol, :"..."} ]
   end
 
-  # Clauses
+  # Clauses - these functions keep us from having to sprinkle {:list ...} all over the place.
   @spec not_clause([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def not_clause(inner_clause), do: datomic_expression(:not, [inner_clause])
 
@@ -230,5 +230,30 @@ defmodule DatomicGenServer.Db do
   defp datomic_expression(symbol_atom, remaining_expressions) do
     clause_list = [{:symbol, symbol_atom} | remaining_expressions ]
     {:list, clause_list}
+  end
+  
+  # Functions for dealing with transaction responses
+  @spec basis_t_before(%{:"db-before" => %{:"basis-t" => integer}}) :: integer
+  def basis_t_before(transaction_result) do
+    %{:"db-before" => %{:"basis-t" => before_t}} = transaction_result
+    before_t
+  end
+  
+  @spec basis_t_after(%{:"db-after" => %{:"basis-t" => integer}}) :: integer
+  def basis_t_after(transaction_result) do
+    %{:"db-after" => %{:"basis-t" => after_t}} = transaction_result
+    after_t
+  end
+  
+  @spec tx_data(%{:"tx-data" => [Exdn.exdn]}) :: [Exdn.exdn]
+  def tx_data(transaction_result) do
+    %{:"tx-data" => tx_data} = transaction_result
+    tx_data
+  end
+  
+  @spec tempids(%{tempids: %{integer => integer}}) :: %{integer => integer}
+  def tempids(transaction_result) do
+    %{tempids: tempids} = transaction_result
+    tempids
   end
 end

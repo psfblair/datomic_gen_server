@@ -30,12 +30,13 @@ defmodule DatomicGenServer.DbTest do
     }]
     
     {:ok, transaction_result} = Db.transact(data_to_add)
-    %{:"db-before" => %{:"basis-t" => before_t}} = transaction_result
+    before_t = Db.basis_t_before(transaction_result)
     assert is_integer(before_t)
-    %{:"db-after" => %{:"basis-t" => after_t}} = transaction_result
+    
+    after_t = Db.basis_t_after(transaction_result)
     assert is_integer(after_t)
     
-    %{:"tx-data" => tx_data} = transaction_result
+    tx_data = Db.tx_data(transaction_result)
     assert 6 == Enum.count(tx_data)
     %{e: entity} = hd(tx_data)
     assert is_integer(entity)
@@ -47,7 +48,7 @@ defmodule DatomicGenServer.DbTest do
     %{added: added?} = hd(tx_data)
     assert added?
     
-    %{tempids: tempids} = transaction_result
+    tempids = Db.tempids(transaction_result)
     assert 1 == Enum.count(tempids)
     assert (Map.keys(tempids) |> hd |> is_integer)
     assert (Map.values(tempids) |> hd |> is_integer)
