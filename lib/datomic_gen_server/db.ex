@@ -1,5 +1,5 @@
 defmodule DatomicGenServer.Db do
-  @type edn :: atom | boolean | number | String.t | tuple | [edn] | %{edn => edn} | MapSet.t(edn) 
+  @type edn :: atom | boolean | number | String.t | tuple | [edn] | %{edn => edn} | MapSet.t 
   
   # Interface functions to the GenServer
   @spec q([edn], non_neg_integer | nil, non_neg_integer | nil) :: term

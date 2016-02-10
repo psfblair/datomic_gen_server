@@ -14,6 +14,8 @@ defmodule DatomicGenServer do
     @type t :: %ProcessState{port: port, message_wait_until_crash: non_neg_integer}
   end
 
+  # TODO We should be able to start multiple GenServers with different configs
+  # and use the other GenServer options.
   @spec start_link(String.t, boolean, startup_wait, message_timeout) :: GenServer.on_start
   def start_link(db_uri, create? \\ false, startup_wait_millis \\ nil, default_message_timeout_millis \\ nil) do
     startup_wait = startup_wait_millis || Application.get_env(:datomic_gen_server, :startup_wait_millis)
@@ -48,6 +50,8 @@ defmodule DatomicGenServer do
     {message_timeout, call_timeout}
   end
 
+  # TODO Return from init faster by sending a message that is handled in handle_info 
+  # to do the initialization, then register after sending the info message.
   @spec init({String.t, boolean, startup_wait, message_timeout}) :: {:ok, ProcessState.t}
   def init({db_uri, create?, startup_wait_millis, default_message_timeout_millis}) do
     # Trapping exits actually does what we want here - i.e., allows us to exit
@@ -56,7 +60,7 @@ defmodule DatomicGenServer do
 
     {working_directory, command} = start_jvm_command(db_uri, create?)
     port = Port.open({:spawn, '#{command}'}, [:binary, packet: 4, cd: working_directory])
-    
+
     # Block until JVM starts up, or we're not ready
     send(port, {self, {:command, :erlang.term_to_binary({:ping})}})
     receive do
@@ -99,6 +103,7 @@ defmodule DatomicGenServer do
     {:noreply, state}
   end
 
+  # TODO Indicate which gen server it is.
   @spec handle_info({:EXIT, port, term}, ProcessState.t) :: no_return
   def handle_info({:EXIT, _, _}, _) do
     _ = Logger.warn("DatomicGenServer received exit message.")  
@@ -109,9 +114,9 @@ defmodule DatomicGenServer do
   # I have overlapping domains.
   def handle_info(_, state), do: {:noreply, state}
   
-  @spec terminate(GenServer.reason, state :: ProcessState.t) :: true
-  def terminate(_, _) do
+  @spec terminate(reason :: term, state :: ProcessState.t) :: true
+  def terminate(reason, _) do
     # Normal shutdown; die ASAP
-    Process.exit(self, :normal)
+    Process.exit(self, reason)
   end
 end
