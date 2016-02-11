@@ -7,6 +7,10 @@
 (def ^:dynamic in nil)
 (def ^:dynamic out nil)
 
+(defn read-edn-response [response]
+  (let [response-edn (nth response 1)]
+    (clojure.edn/read-string *data-readers* response-edn)))
+
 ;; NOTE If you send a message and don't read the reply from `out`
 ;; the test is going to hang!!!!
 (defn db-fixture [test-fun]
@@ -40,9 +44,7 @@
                            :db/cardinality :db.cardinality/one
                            :db/doc \"A person's name\"
                            :db.install/_attribute :db.part/db}]"])
-    (let [ignore-edn-tags {:default #(identity [%1 %2])}
-          response-edn (nth (<!! out) 1)
-          edn-data (clojure.edn/read-string ignore-edn-tags response-edn)]
+    (let [edn-data (read-edn-response (<!! out))]
       (is (= java.lang.Long (type ((edn-data :db-before) :basis-t))))
       ; TODO Can we get this somehow?
       ; (is (= "test" ((edn-data :db-before) :db/alias)))
@@ -62,6 +64,42 @@
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (not (= "#{}\n" (query-result 1)))))))
+
+;; Finds an entity id for a datom with a certain value
+(defn- entity-id-for-value [tx-data value]
+  (let [datom (some #(if (= (% :v) value) %) tx-data)]
+    (datom :e)))
+  
+(deftest test-round-trip
+  (testing "Can ask for an entity"
+    (>!! in [:transact "[ {:db/id #db/id[:db.part/db]
+                           :db/ident :person/email
+                           :db/valueType :db.type/string
+                           :db/cardinality :db.cardinality/one
+                           :db/doc \"A person's email\"
+                           :db.install/_attribute :db.part/db}]"])
+    
+    (let [edn-data (read-edn-response (<!! out))
+          ; We get different entities back in the transaction response. Get the email one
+          entity-id (entity-id-for-value (edn-data :tx-data) :person/email)]
+      (>!! in [:entity (str entity-id) :all])
+      (let [response-edn (read-edn-response (<!! out))
+            expected {:db/ident :person/email
+                      :db/valueType :db.type/string
+                      :db/cardinality :db.cardinality/one
+                      :db/doc "A person's email"}]
+        (is (= expected response-edn))))
+    
+    ;; Look up using ident; second item in tuple is an edn string
+    (>!! in [:entity (str :person/email) [:db/valueType :db/doc]])
+    (let [response-edn (read-edn-response (<!! out))]
+      (is (= {:db/valueType :db.type/string :db/doc "A person's email"} response-edn)))
+    
+    ; Lookup using lookup ref; attribute must be unique so we can't use :db/doc
+    (>!! in [:entity (str [:db/ident :person/email]) [:db/ident]])
+    (let [response-edn (read-edn-response (<!! out))]
+      (is (= {:db/ident :person/email} response-edn)))
+    ))
 
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"

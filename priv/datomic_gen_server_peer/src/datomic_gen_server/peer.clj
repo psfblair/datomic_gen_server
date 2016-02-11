@@ -6,9 +6,6 @@
             [datomic.api :as datomic]
   ))
 
-(defn- read-edn [edn-str]
-  (clojure.edn/read-string {:readers *data-readers*} edn-str))
-
 (defn- connect [db-url create?]
   (try 
     (datomic/connect db-url)
@@ -21,9 +18,22 @@
 (defn- q [database edn-str]
   (-> (datomic/q edn-str database) prn-str))
 
+(defn- read-edn [edn-str]
+  (clojure.edn/read-string {:readers *data-readers*} edn-str))
+
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
     @completed-future))
+
+(defn- entity-attributes [attribute-names entity-map]
+  (let [attrs (if (= :all attribute-names)
+                (keys entity-map)
+                attribute-names)
+        selected (select-keys entity-map attrs)]
+    (select-keys entity-map attrs)))
+                
+(defn- entity [database edn-str attr-names]
+  (->> (read-edn edn-str) (datomic/entity database) (entity-attributes attr-names) prn-str))
     
 (defn- serialize-datoms [datom]
   {:a (.a datom) :e (.e datom) :v (.v datom) :tx (.tx datom) :added (.added datom) })
@@ -50,6 +60,7 @@
       [:q edn] {:db database :result [:ok (q database edn)]}
       [:transact edn] (let [result (transact connection edn)]
                         {:db (result :db-after) :result [:ok (serialize-transaction-response result)]})
+      [:entity edn attr-names] {:db database :result [:ok (entity database edn attr-names)]}
       [:ping] {:db database :result [:ok (prn-str #{})]}
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
