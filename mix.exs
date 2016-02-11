@@ -7,7 +7,8 @@ defmodule DatomicGenServer.Mixfile do
      elixir: "~> 1.2",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
-     deps: deps]
+     deps: deps,
+     aliases: aliases]
   end
 
   # Configuration for the OTP application
@@ -29,5 +30,27 @@ defmodule DatomicGenServer.Mixfile do
   defp deps do
     [ {:exdn,    "~> 2.1.2"},
       {:dialyxir, "~> 0.3", only: [:dev]}]
+  end
+
+  defp aliases do
+    [ {:clean,   ["clean",   &clean_uberjars/1]},
+      {:compile, ["compile", &uberjar/1]}
+    ]
+  end
+
+  defp clean_uberjars(_) do
+    priv_dir = case :code.priv_dir(:datomic_gen_server) do
+      {:error, _} -> priv_dir = Path.join [System.cwd(), "priv"]
+      a_directory -> a_directory
+    end
+
+    uberjar_dir = Path.join [priv_dir, "datomic_gen_server_peer", "target" ]
+    if File.exists?(uberjar_dir) do
+      Mix.shell.cmd "echo cleaning uberjar directory #{uberjar_dir}...; rm -Rf #{uberjar_dir}"
+    end
+  end
+
+  defp uberjar(_) do
+    Mix.shell.cmd "cd #{:code.priv_dir(:datomic_gen_server)}/datomic_gen_server_peer; lein uberjar"
   end
 end

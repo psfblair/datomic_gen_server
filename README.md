@@ -13,10 +13,10 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         end
 
   2. You will need to install the Clojure leiningen build tool in order to build
-     the Clojure jar with which the application communicates. Then, in the
-     `priv/datomic_gen_server_peer` directory, run
-     
-        lein uberjar
+     the Clojure jar with which the application communicates. The `mix compile` 
+     task includes running `lein uberjar` in the `priv/datomic_gen_server_peer`  
+     directory, and `mix clean` will remove the `target` subdirectory of that
+     directory.
   
   3. You may want to configure the default timeout values in the config.exs file,
      which control the default amount of time the application waits for the JVM 
