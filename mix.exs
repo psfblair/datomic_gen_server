@@ -39,18 +39,21 @@ defmodule DatomicGenServer.Mixfile do
   end
 
   defp clean_uberjars(_) do
-    priv_dir = case :code.priv_dir(:datomic_gen_server) do
-      {:error, _} -> priv_dir = Path.join [System.cwd(), "priv"]
-      a_directory -> a_directory
-    end
+    priv_dir = Path.join [System.cwd(), "priv"]
 
     uberjar_dir = Path.join [priv_dir, "datomic_gen_server_peer", "target" ]
     if File.exists?(uberjar_dir) do
-      Mix.shell.cmd "echo cleaning uberjar directory #{uberjar_dir}...; rm -Rf #{uberjar_dir}"
+      File.rm_rf uberjar_dir
     end
   end
 
   defp uberjar(_) do
-    Mix.shell.cmd "cd #{:code.priv_dir(:datomic_gen_server)}/datomic_gen_server_peer; lein uberjar"
+    peer_dir = Path.join [:code.priv_dir(:datomic_gen_server), "datomic_gen_server_peer" ]
+    if [peer_dir, "target", "peer*standalone.jar"] |> Path.join |> Path.wildcard |> Enum.empty? do
+      pwd = System.cwd()
+      File.cd(peer_dir)
+      Mix.shell.cmd "lein uberjar"
+      File.cd(pwd)
+    end
   end
 end
