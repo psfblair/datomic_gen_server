@@ -5,40 +5,54 @@ defmodule DatomicGenServer do
   @type datomic_message :: {:q, String.t} | {:transact, String.t}
   @type datomic_call :: {datomic_message, message_timeout :: non_neg_integer}
   @type datomic_result :: {:ok, String.t} | {:error, term}
-  @type message_timeout :: non_neg_integer | nil
-  @type call_timeout :: non_neg_integer | nil
-  @type startup_wait :: non_neg_integer | nil
+  @type start_option :: GenServer.option | {:default_message_timeout, non_neg_integer}
 
+  # These should be overridden either by application configs or by passed parameters
+  @last_ditch_startup_timeout 5000
+  @last_ditch_default_message_timeout 5000
+  
   defmodule ProcessState do
     defstruct port: nil, message_wait_until_crash: 5_000
     @type t :: %ProcessState{port: port, message_wait_until_crash: non_neg_integer}
   end
-
-  # TODO Add timeouts as an option map.
-  # TODO We should be able to start multiple GenServers with different configs
-  # and use the other GenServer options.
-  @spec start_link(String.t, boolean, startup_wait, message_timeout) :: GenServer.on_start
-  def start_link(db_uri, create? \\ false, startup_wait_millis \\ nil, default_message_timeout_millis \\ nil) do
-    startup_wait = startup_wait_millis || Application.get_env(:datomic_gen_server, :startup_wait_millis)
-    default_message_timeout = default_message_timeout_millis || Application.get_env(:datomic_gen_server, :message_wait_until_crash)
   
-    params = {db_uri, create?, startup_wait, default_message_timeout}
-    GenServer.start_link(__MODULE__, params, name: __MODULE__)  
+  @spec start(String.t, boolean, [start_option]) :: GenServer.on_start
+  def start(db_uri, create? \\ false, options \\ []) do
+    {params, options} = startup_params(db_uri, create?, options)
+    GenServer.start(__MODULE__, params, options)  
   end
 
-  @spec q(String.t, message_timeout, call_timeout) :: datomic_result
+  @spec start_link(String.t, boolean, [start_option]) :: GenServer.on_start
+  def start_link(db_uri, create? \\ false, options \\ []) do
+    {params, options} = startup_params(db_uri, create?, options)
+    GenServer.start_link(__MODULE__, params, options)  
+  end
+  
+  defp startup_params(db_uri, create?, options) do
+    {startup_wait, options} = Keyword.pop(options, :timeout) 
+    startup_wait = startup_wait || Application.get_env(:datomic_gen_server, :startup_wait_millis) || @last_ditch_startup_timeout
+    
+    {default_message_timeout, options} = Keyword.pop(options, :default_message_timeout) 
+    default_message_timeout = default_message_timeout || Application.get_env(:datomic_gen_server, :message_wait_until_crash) || @last_ditch_default_message_timeout
+    
+    params = {db_uri, create?, startup_wait, default_message_timeout}
+    {params, Keyword.put(options, :name, __MODULE__)}
+  end
+
+  # TODO Add timeouts as an option map.
+  @spec q(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
   def q(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
     GenServer.call(__MODULE__, {{:q, edn_str}, message_timeout}, client_timeout)
   end
   
-  @spec transact(String.t, message_timeout, call_timeout) :: datomic_result
+  @spec transact(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
   def transact(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
     GenServer.call(__MODULE__, {{:transact, edn_str}, message_timeout}, client_timeout)
   end
   
-  @spec entity(String.t, [atom] | :all, message_timeout, call_timeout) :: datomic_result
+  @spec entity(String.t, [atom] | :all, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
   def entity(edn_str, attr_names \\ :all, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
     GenServer.call(__MODULE__, {{:entity, edn_str, attr_names}, message_timeout}, client_timeout)
@@ -59,12 +73,11 @@ defmodule DatomicGenServer do
 
   # TODO Return from init faster by sending a message that is handled in handle_info 
   # to do the initialization, then register after sending the info message.
-  @spec init({String.t, boolean, startup_wait, message_timeout}) :: {:ok, ProcessState.t}
+  @spec init({String.t, boolean, non_neg_integer, non_neg_integer}) :: {:ok, ProcessState.t}
   def init({db_uri, create?, startup_wait_millis, default_message_timeout_millis}) do
     # Trapping exits actually does what we want here - i.e., allows us to exit
     # if the Clojure process crashes on startup, using handle_info below.
     Process.flag(:trap_exit, true)
-
     {working_directory, command} = start_jvm_command(db_uri, create?)
     port = Port.open({:spawn, '#{command}'}, [:binary, packet: 4, cd: working_directory])
 
