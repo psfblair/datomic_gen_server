@@ -34,6 +34,31 @@ defmodule DatomicGenServerTest do
     {:ok, result_str} = DatomicGenServer.q(query)
     assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
   end
+
+  test "can ask for an entity" do
+    data_to_add = """
+      [ {:db/id #db/id[:db.part/db]
+         :db/ident :person/email
+         :db/valueType :db.type/string
+         :db/cardinality :db.cardinality/one
+         :db/doc \"A person's email\"
+         :db.install/_attribute :db.part/db} ]
+    """
+    {:ok, _} = DatomicGenServer.transact(data_to_add)
+
+    all_attributes = "{:db/ident :person/email, :db/valueType :db.type/string, :db/cardinality :db.cardinality/one, :db/doc \"A person's email\"}\n"
+    {:ok, entity_result} = DatomicGenServer.entity(":person/email")
+    assert all_attributes == entity_result
+
+    {:ok, entity_result2} = DatomicGenServer.entity(":person/email", :all)
+    assert all_attributes == entity_result2
+
+    {:ok, entity_result3} = DatomicGenServer.entity(":person/email", [:"db/valueType", :"db/doc"])
+    assert "{:db/valueType :db.type/string, :db/doc \"A person's email\"}\n" == entity_result3
+     
+    {:ok, entity_result4} = DatomicGenServer.entity("[:db/ident :person/email]", [:"db/cardinality"])
+    assert "{:db/cardinality :db.cardinality/one}\n" == entity_result4
+  end
   
   test "Handles garbled queries" do
     query = "[:find ?c :wh?ere]"

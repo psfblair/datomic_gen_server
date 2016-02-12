@@ -58,6 +58,37 @@ defmodule DatomicGenServer.DbTest do
     assert 1 == Enum.count(query_result)
   end
   
+  test "can ask for an entity" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/email",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's email",
+        Db.install_attribute => Db.schema_partition
+    }]
+    {:ok, _} = Db.transact(data_to_add)
+
+    all_attributes = 
+      %{ Db.ident => :"person/email", 
+         Db.value_type => Db.type_string, 
+         Db.cardinality => Db.cardinality_one, 
+         Db.doc => "A person's email"
+        }
+      
+    {:ok, entity_result} = Db.entity(:"person/email")
+    assert all_attributes == entity_result
+
+    {:ok, entity_result2} = Db.entity(:"person/email", :all)
+    assert all_attributes == entity_result2
+
+    {:ok, entity_result3} = Db.entity(:"person/email", [Db.value_type, Db.doc])
+    assert %{Db.value_type => :"db.type/string", Db.doc => "A person's email"} == entity_result3
+     
+    {:ok, entity_result4} = Db.entity([Db.ident, :"person/email"], [Db.cardinality])
+    assert %{Db.cardinality => Db.cardinality_one} == entity_result4
+  end
+
   test "Handles garbled queries" do
     query = [:find, Db.q?(:c), :"wh?ere"]
     {:error, query_result} = Db.q(query)

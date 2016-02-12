@@ -14,6 +14,7 @@ defmodule DatomicGenServer do
     @type t :: %ProcessState{port: port, message_wait_until_crash: non_neg_integer}
   end
 
+  # TODO Add timeouts as an option map.
   # TODO We should be able to start multiple GenServers with different configs
   # and use the other GenServer options.
   @spec start_link(String.t, boolean, startup_wait, message_timeout) :: GenServer.on_start
@@ -35,6 +36,12 @@ defmodule DatomicGenServer do
   def transact(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
     {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
     GenServer.call(__MODULE__, {{:transact, edn_str}, message_timeout}, client_timeout)
+  end
+  
+  @spec entity(String.t, [atom] | :all, message_timeout, call_timeout) :: datomic_result
+  def entity(edn_str, attr_names \\ :all, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
+    GenServer.call(__MODULE__, {{:entity, edn_str, attr_names}, message_timeout}, client_timeout)
   end
 
   @spec exit :: {:stop, :normal}

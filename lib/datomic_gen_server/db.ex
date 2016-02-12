@@ -1,9 +1,11 @@
 defmodule DatomicGenServer.Db do
+  #TODO Allow passing in converters
+  #TODO Struct for transaction
   
   # Interface functions to the GenServer
-  @spec q([Exdn.exdn], non_neg_integer | nil, non_neg_integer | nil) :: {:ok, Exdn.exdn} | {:error, term}
-  def q(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    case Exdn.from_elixir(edn) do
+  @spec q([Exdn.exdn], DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
+  def q(exdn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.q(edn_str, message_timeout_millis, timeout_on_call) do
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
@@ -13,9 +15,9 @@ defmodule DatomicGenServer.Db do
     end
   end
 
-  @spec transact([Exdn.exdn], non_neg_integer | nil, non_neg_integer | nil) :: {:ok, Exdn.exdn} | {:error, term}
-  def transact(edn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    case Exdn.from_elixir(edn) do
+  @spec transact([Exdn.exdn], DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
+  def transact(exdn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.transact(edn_str, message_timeout_millis, timeout_on_call) do          
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
@@ -25,8 +27,17 @@ defmodule DatomicGenServer.Db do
     end
   end
   
-  # TODO Functions for retrieving parts of a transaction response
-  # TODO Entity call
+  @spec entity([Exdn.exdn], [atom] | :all, DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
+  def entity(exdn, attr_names \\ :all, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+    case Exdn.from_elixir(exdn) do
+      {:ok, edn_str} -> 
+        case DatomicGenServer.entity(edn_str, attr_names, message_timeout_millis, timeout_on_call) do          
+          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          error -> error
+        end
+      parse_error -> parse_error
+    end
+  end
 
   # Id/ident
   @spec dbid(atom) :: {:tag, :"db/id", [atom]} 
