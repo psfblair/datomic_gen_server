@@ -36,7 +36,7 @@ defmodule DatomicGenServer do
     default_message_timeout = default_message_timeout || Application.get_env(:datomic_gen_server, :message_wait_until_crash) || @last_ditch_default_message_timeout
     
     params = {db_uri, create?, startup_wait, default_message_timeout}
-    {params, Keyword.put(options, :name, __MODULE__)}
+    {params, options}
   end
 
   # TODO Add timeouts as an option map.
