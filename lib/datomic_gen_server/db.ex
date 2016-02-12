@@ -3,11 +3,11 @@ defmodule DatomicGenServer.Db do
   #TODO Struct for transaction
   
   # Interface functions to the GenServer
-  @spec q([Exdn.exdn], DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
-  def q(exdn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+  @spec q(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  def q(server_identifier, exdn, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
-        case DatomicGenServer.q(edn_str, message_timeout_millis, timeout_on_call) do
+        case DatomicGenServer.q(server_identifier, edn_str, options) do
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
           error -> error
         end
@@ -15,11 +15,11 @@ defmodule DatomicGenServer.Db do
     end
   end
 
-  @spec transact([Exdn.exdn], DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
-  def transact(exdn, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+  @spec transact(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  def transact(server_identifier, exdn, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
-        case DatomicGenServer.transact(edn_str, message_timeout_millis, timeout_on_call) do          
+        case DatomicGenServer.transact(server_identifier, edn_str, options) do          
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
           error -> error
         end
@@ -27,11 +27,11 @@ defmodule DatomicGenServer.Db do
     end
   end
   
-  @spec entity([Exdn.exdn], [atom] | :all, DatomicGenServer.message_timeout, DatomicGenServer.call_timeout) :: {:ok, Exdn.exdn} | {:error, term}
-  def entity(exdn, attr_names \\ :all, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
+  @spec entity(GenServer.server, [Exdn.exdn], [atom] | :all, [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  def entity(server_identifier, exdn, attr_names \\ :all, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
-        case DatomicGenServer.entity(edn_str, attr_names, message_timeout_millis, timeout_on_call) do          
+        case DatomicGenServer.entity(server_identifier, edn_str, attr_names, options) do          
           {:ok, reply_str} -> Exdn.to_elixir(reply_str)
           error -> error
         end

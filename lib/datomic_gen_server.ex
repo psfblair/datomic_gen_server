@@ -2,10 +2,11 @@ defmodule DatomicGenServer do
   use GenServer
   require Logger
 
-  @type datomic_message :: {:q, String.t} | {:transact, String.t}
+  @type datomic_message :: {:q, String.t} | {:transact, String.t} | {:entity, String.t, [atom]}
   @type datomic_call :: {datomic_message, message_timeout :: non_neg_integer}
   @type datomic_result :: {:ok, String.t} | {:error, term}
   @type start_option :: GenServer.option | {:default_message_timeout, non_neg_integer}
+  @type send_option :: {:message_timeout, non_neg_integer} | {:client_timeout, non_neg_integer}
 
   # These should be overridden either by application configs or by passed parameters
   @last_ditch_startup_timeout 5000
@@ -16,6 +17,7 @@ defmodule DatomicGenServer do
     @type t :: %ProcessState{port: port, message_wait_until_crash: non_neg_integer}
   end
   
+############################# INTERFACE FUNCTIONS  ############################
   @spec start(String.t, boolean, [start_option]) :: GenServer.on_start
   def start(db_uri, create? \\ false, options \\ []) do
     {params, options} = startup_params(db_uri, create?, options)
@@ -39,38 +41,48 @@ defmodule DatomicGenServer do
     {params, options}
   end
 
-  # TODO Add timeouts as an option map.
-  @spec q(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
-  def q(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
-    GenServer.call(__MODULE__, {{:q, edn_str}, message_timeout}, client_timeout)
+  @spec q(GenServer.server, String.t, [send_option]) :: datomic_result
+  def q(server_identifier, edn_str, options \\ []) do
+    call_server(server_identifier, {:q, edn_str}, options)
   end
   
-  @spec transact(String.t, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
-  def transact(edn_str, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
-    GenServer.call(__MODULE__, {{:transact, edn_str}, message_timeout}, client_timeout)
+  @spec transact(GenServer.server, String.t, [send_option]) :: datomic_result
+  def transact(server_identifier, edn_str, options \\ []) do
+    call_server(server_identifier, {:transact, edn_str}, options)
   end
   
-  @spec entity(String.t, [atom] | :all, non_neg_integer | nil, non_neg_integer | nil) :: datomic_result
-  def entity(edn_str, attr_names \\ :all, message_timeout_millis \\ nil, timeout_on_call \\ nil) do
-    {message_timeout, client_timeout} = message_wait_times(message_timeout_millis, timeout_on_call)
-    GenServer.call(__MODULE__, {{:entity, edn_str, attr_names}, message_timeout}, client_timeout)
+  @spec entity(GenServer.server, String.t, [atom] | :all, [send_option]) :: datomic_result
+  def entity(server_identifier, edn_str, attr_names \\ :all, options \\ []) do
+    call_server(server_identifier, {:entity, edn_str, attr_names}, options)
   end
+  
+  @spec call_server(GenServer.server, datomic_message, [send_option]) :: datomic_result
+  defp call_server(server_identifier, request, options) do
+    {message_timeout, client_timeout} = message_wait_times(options)
+    if client_timeout do
+      GenServer.call(server_identifier, {request, message_timeout}, client_timeout)
+    else
+      GenServer.call(server_identifier, {request, message_timeout})
+    end
+  end
+  
+  defp message_wait_times(options) do
+    # If it's nil, this value value is nil and we'll use the general default when handling the call.
+    message_timeout = Keyword.get(options, :message_timeout) 
+    
+    client_timeout = Keyword.get(options, :client_timeout) 
+    client_timeout = client_timeout || Application.get_env(:datomic_gen_server, :timeout_on_call)
 
+    {message_timeout, client_timeout}
+  end
+  
   @spec exit :: {:stop, :normal}
   def exit() do
     _ = Logger.warn("exit called on DatomicGenServer.")
     {:stop, :normal}
   end
   
-  defp message_wait_times(message_timeout_millis, call_timeout_millis) do
-    # If it's nil, this value is nil and we'll use the general default when handling the call.
-    message_timeout = if is_nil(message_timeout_millis) do nil else message_timeout_millis end
-    call_timeout = call_timeout_millis || Application.get_env(:datomic_gen_server, :timeout_on_call)
-    {message_timeout, call_timeout}
-  end
-
+############################# CALLBACK FUNCTIONS  ##############################
   # TODO Return from init faster by sending a message that is handled in handle_info 
   # to do the initialization, then register after sending the info message.
   @spec init({String.t, boolean, non_neg_integer, non_neg_integer}) :: {:ok, ProcessState.t}

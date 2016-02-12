@@ -10,12 +10,12 @@ defmodule DatomicGenServer.DbTest do
   
   test "can issue Datomic queries" do
     query = [:find, Db.q?(:c), :where, [Db.q?(:c), :"db/doc", "Some docstring that shouldn't be in the database"]]
-    result = Db.q(query)
+    result = Db.q(DatomicGenServer, query)
     
     empty_set = MapSet.new()
     assert {:ok, empty_set} == result
 
-    second_result = Db.q(query)
+    second_result = Db.q(DatomicGenServer, query)
     assert {:ok, empty_set} == second_result
   end
   
@@ -29,7 +29,7 @@ defmodule DatomicGenServer.DbTest do
         Db.install_attribute => Db.schema_partition
     }]
     
-    {:ok, transaction_result} = Db.transact(data_to_add)
+    {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
     before_t = Db.basis_t_before(transaction_result)
     assert is_integer(before_t)
     
@@ -54,7 +54,7 @@ defmodule DatomicGenServer.DbTest do
     assert (Map.values(tempids) |> hd |> is_integer)
 
     query = [:find, Db.q?(:c), :where, [Db.q?(:c), :"db/doc", "A person's name"]]
-    {:ok, query_result} = Db.q(query)
+    {:ok, query_result} = Db.q(DatomicGenServer, query)
     assert 1 == Enum.count(query_result)
   end
   
@@ -67,7 +67,7 @@ defmodule DatomicGenServer.DbTest do
         Db.doc => "A person's email",
         Db.install_attribute => Db.schema_partition
     }]
-    {:ok, _} = Db.transact(data_to_add)
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
 
     all_attributes = 
       %{ Db.ident => :"person/email", 
@@ -76,28 +76,28 @@ defmodule DatomicGenServer.DbTest do
          Db.doc => "A person's email"
         }
       
-    {:ok, entity_result} = Db.entity(:"person/email")
+    {:ok, entity_result} = Db.entity(DatomicGenServer, :"person/email")
     assert all_attributes == entity_result
 
-    {:ok, entity_result2} = Db.entity(:"person/email", :all)
+    {:ok, entity_result2} = Db.entity(DatomicGenServer, :"person/email", :all)
     assert all_attributes == entity_result2
 
-    {:ok, entity_result3} = Db.entity(:"person/email", [Db.value_type, Db.doc])
+    {:ok, entity_result3} = Db.entity(DatomicGenServer, :"person/email", [Db.value_type, Db.doc])
     assert %{Db.value_type => :"db.type/string", Db.doc => "A person's email"} == entity_result3
      
-    {:ok, entity_result4} = Db.entity([Db.ident, :"person/email"], [Db.cardinality])
+    {:ok, entity_result4} = Db.entity(DatomicGenServer, [Db.ident, :"person/email"], [Db.cardinality])
     assert %{Db.cardinality => Db.cardinality_one} == entity_result4
   end
 
   test "Handles garbled queries" do
     query = [:find, Db.q?(:c), :"wh?ere"]
-    {:error, query_result} = Db.q(query)
+    {:error, query_result} = Db.q(DatomicGenServer, query)
     assert Regex.match?(~r/Exception/, query_result)
   end
   
   test "Handles garbled transactions" do
     data_to_add = [%{ Db.id => :foobar }]
-    {:error, transaction_result} = DatomicGenServer.transact(data_to_add)
+    {:error, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
     assert Regex.match?(~r/Exception/, transaction_result)
   end
   
