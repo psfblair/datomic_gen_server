@@ -1,5 +1,8 @@
 defmodule DatomicGenServer.Db do
-  #TODO Allow passing in converters to make structs from queries
+  #TODO Use type Exdn.converter
+  @type query_option :: DatomicGenServer.send_option | 
+                        {:response_converter, (Exdn.exdn -> term)} | 
+                        {:edn_tag_handlers, [{atom, Exdn.handler}, ...]}
   
   @type datom_map :: %{:e => integer, :a => atom, :v => term, :tx => integer, :added => boolean}
   @type transaction_result :: %{:"db-before" => %{:"basis-t" => integer}, 
@@ -26,19 +29,19 @@ defmodule DatomicGenServer.Db do
   end
 
 ############################# INTERFACE FUNCTIONS  ############################
-  @spec q(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  @spec q(GenServer.server, [Exdn.exdn], [query_option]) :: {:ok, term} | {:error, term}
   def q(server_identifier, exdn, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.q(server_identifier, edn_str, options) do
-          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          {:ok, reply_str} -> convert_query_response(reply_str)
           error -> error
         end
       parse_error -> parse_error
     end
   end
 
-  @spec transact(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  @spec transact(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, DatomicTransaction.t} | {:error, term}
   def transact(server_identifier, exdn, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
@@ -53,18 +56,23 @@ defmodule DatomicGenServer.Db do
     end
   end
   
-  @spec entity(GenServer.server, [Exdn.exdn], [atom] | :all, [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
+  @spec entity(GenServer.server, [Exdn.exdn], [atom] | :all, [query_option]) :: {:ok, term} | {:error, term}
   def entity(server_identifier, exdn, attr_names \\ :all, options \\ []) do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.entity(server_identifier, edn_str, attr_names, options) do          
-          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          {:ok, reply_str} -> convert_query_response(reply_str)
           error -> error
         end
       parse_error -> parse_error
     end
   end
 
+  @spec convert_query_response(String.t) :: {:ok, term} | {:error, term}
+  defp convert_query_response(response_str) do
+    Exdn.to_elixir(response_str)
+  end
+  
 ############################# DATOMIC SHORTCUTS  ############################
   # Id/ident
   @spec dbid(atom) :: {:tag, :"db/id", [atom]} 
@@ -271,7 +279,7 @@ defmodule DatomicGenServer.Db do
   end
 
   # Functions for structifying transaction responses
-  @spec transaction(transaction_result) :: DatomicTransaction.t
+  @spec transaction(transaction_result) :: {:ok, DatomicTransaction.t} | {:error, term}
   defp transaction(transaction_result) do
     try do
       {added_datoms, retracted_datoms} = tx_data(transaction_result) |> to_datoms
@@ -287,7 +295,7 @@ defmodule DatomicGenServer.Db do
     end
   end
   
-  @spec to_datoms([datom_map]) :: [Datom.t]
+  @spec to_datoms([datom_map]) :: {[Datom.t], [Datom.t]}
   defp to_datoms(datom_maps) do
     datom_maps
     |> Enum.map(fn(datom_map) -> struct(Datom, datom_map) end) 
@@ -295,26 +303,22 @@ defmodule DatomicGenServer.Db do
   end
   
   @spec basis_t_before(%{:"db-before" => %{:"basis-t" => integer}}) :: integer
-  defp basis_t_before(transaction_result) do
-    %{:"db-before" => %{:"basis-t" => before_t}} = transaction_result
+  defp basis_t_before(%{:"db-before" => %{:"basis-t" => before_t}}) do
     before_t
   end
   
   @spec basis_t_after(%{:"db-after" => %{:"basis-t" => integer}}) :: integer
-  defp basis_t_after(transaction_result) do
-    %{:"db-after" => %{:"basis-t" => after_t}} = transaction_result
+  defp basis_t_after(%{:"db-after" => %{:"basis-t" => after_t}}) do
     after_t
   end
   
-  @spec tx_data(%{:"tx-data" => [datom_map]}) :: [Exdn.exdn]
-  defp tx_data(transaction_result) do
-    %{:"tx-data" => tx_data} = transaction_result
+  @spec tx_data(%{:"tx-data" => [datom_map]}) :: [datom_map]
+  defp tx_data(%{:"tx-data" => tx_data}) do
     tx_data
   end
   
   @spec tempids(%{tempids: %{integer => integer}}) :: %{integer => integer}
-  defp tempids(transaction_result) do
-    %{tempids: tempids} = transaction_result
+  defp tempids(%{tempids: tempids}) do
     tempids
   end
 end
