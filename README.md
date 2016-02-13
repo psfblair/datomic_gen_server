@@ -23,8 +23,11 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
      to start before crashing, and the default amount of time it waits for a 
      reply from the JVM peer before crashing.
      
-  4. Ensure datomic_gen_server is started before your application:
+  4. Ensure datomic_gen_server (as well as Logger and Calendar) is started before 
+     your application:
 
         def application do
-          [applications: [:datomic_gen_server]]
+          [applications: [:logger, :calendar, :datomic_gen_server]]
         end
+
+Note: Initial messages need to wait for the startup timeout

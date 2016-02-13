@@ -121,18 +121,23 @@ defmodule DatomicGenServer do
       # Make sure we're only listening for a message back from the port, not some
       # message from a caller that may have gotten in first.
       {^port, {:data, _}} -> {:noreply, %ProcessState{port: port, message_wait_until_crash: state.message_wait_until_crash}}
-      {:EXIT, _, _} -> exit(:port_exited_with_error)
+      {:EXIT, _, _} ->
+        _ = Logger.error("DatomicGenServer #{my_name} port exited with error on startup.")
+        exit(:port_exited_with_error)
     after startup_wait_millis -> 
-      _ = Logger.error("DatomicGenServer port startup timed out after startup_wait_millis: [#{startup_wait_millis}]")
+      _ = Logger.error("DatomicGenServer #{my_name} port startup timed out after startup_wait_millis: [#{startup_wait_millis}]")
       exit(:port_start_timed_out)
     end
   end
   
-  # TODO Indicate which gen server it is in the exit message.
   @spec handle_info({:EXIT, port, term}, ProcessState.t) :: no_return
   def handle_info({:EXIT, _, _}, _) do
-    _ = Logger.warn("DatomicGenServer received exit message.")  
+    _ = Logger.warn("DatomicGenServer #{my_name} received exit message.")
     exit(:port_terminated)
+  end
+
+  defp my_name do
+    Process.info(self) |> Keyword.get(:registered_name) || self |> inspect
   end
   
   # Not sure how to do spec for this catch-all case without Dialyzer telling me
@@ -158,7 +163,7 @@ defmodule DatomicGenServer do
     response = receive do 
       {^port, {:data, b}} -> :erlang.binary_to_term(b) 
     after message_timeout -> 
-      _ = Logger.error("DatomicGenServer port unresponsive with this_msg_timeout #{this_msg_timeout} and message_wait_until_crash #{message_wait_until_crash}")
+      _ = Logger.error("DatomicGenServer #{my_name} port unresponsive with this_msg_timeout #{this_msg_timeout} and message_wait_until_crash #{message_wait_until_crash}")
       exit(:port_unresponsive)
     end
     
