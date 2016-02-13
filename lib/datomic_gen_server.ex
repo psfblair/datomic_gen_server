@@ -157,6 +157,14 @@ defmodule DatomicGenServer do
     {:reply, response, state}
   end
   
+  # Need this in case an earlier call times out without the GenServer crashing, and
+  # then the reply for that call from the Clojure port comes back before the 
+  # response to the message we're waiting for. Right now if there is such a 
+  # message we just clear it out of the mailbox and keep going. In the future, 
+  # if we're handling async messages we will need to do something more intelligent.
+  # It would be nice if we could just use a pattern match in the receive clause
+  # for this purpose, but we need to call :erlang.binary_to_term on the message
+  # to see what's in it, and we can't do that without handling the message. 
   defp wait_for_reply(port, sent_message, message_timeout, this_msg_timeout, message_wait_until_crash) do
     start_time = :os.system_time(:milli_seconds)
     
