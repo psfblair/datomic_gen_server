@@ -34,25 +34,23 @@ defmodule DatomicGenServer.DbTest do
     }]
     
     {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
-    before_t = Db.basis_t_before(transaction_result)
-    assert is_integer(before_t)
+    assert is_integer(transaction_result.basis_t_before)
+    assert is_integer(transaction_result.basis_t_after)
     
-    after_t = Db.basis_t_after(transaction_result)
-    assert is_integer(after_t)
+    retracted_datoms = transaction_result.retracted_datoms
+    assert 0 == Enum.count(retracted_datoms)
     
-    tx_data = Db.tx_data(transaction_result)
-    assert 6 == Enum.count(tx_data)
-    %{e: entity} = hd(tx_data)
-    assert is_integer(entity)
-    %{a: attribute} = hd(tx_data)
-    assert is_integer(attribute)
-    %{v: _} = hd(tx_data)
-    %{tx: transaction} = hd(tx_data)
-    assert is_integer(transaction)
-    %{added: added?} = hd(tx_data)
-    assert added?
+    added_datoms = transaction_result.added_datoms
+    assert 6 == Enum.count(added_datoms)
     
-    tempids = Db.tempids(transaction_result)
+    first_datom = hd(added_datoms)
+    assert is_integer(first_datom.e)
+    assert is_integer(first_datom.a)
+    assert ! is_nil(first_datom.v)
+    assert is_integer(first_datom.tx)
+    assert first_datom.added
+    
+    tempids = transaction_result.tempids
     assert 1 == Enum.count(tempids)
     assert (Map.keys(tempids) |> hd |> is_integer)
     assert (Map.values(tempids) |> hd |> is_integer)

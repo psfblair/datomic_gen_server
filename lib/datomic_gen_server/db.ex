@@ -1,7 +1,30 @@
 defmodule DatomicGenServer.Db do
   #TODO Allow passing in converters to make structs from queries
-  #TODO Struct for transaction
   
+  @type datom_map :: %{:e => integer, :a => atom, :v => term, :tx => integer, :added => boolean}
+  @type transaction_result :: %{:"db-before" => %{:"basis-t" => integer}, 
+                                :"db-after" => %{:"basis-t" => integer}, 
+                                :"tx-data" => [datom_map], 
+                                :tempids => %{integer => integer}}
+  
+  defmodule DatomicTransaction do
+    defstruct basis_t_before: 0, 
+              basis_t_after: 0, 
+              added_datoms: [], 
+              retracted_datoms: [], 
+              tempids: %{} 
+    @type t :: %DatomicTransaction{basis_t_before: integer, 
+                                   basis_t_after: integer, 
+                                   added_datoms: [Datom.t], 
+                                   retracted_datoms: [Datom.t], 
+                                   tempids: %{integer => integer}}
+  end
+  
+  defmodule Datom do
+    defstruct a: 0, e: 0, v: [], tx: %{}, added: false
+    @type t :: %Datom{e: integer, a: atom, v: term, tx: integer, added: boolean}
+  end
+
 ############################# INTERFACE FUNCTIONS  ############################
   @spec q(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
   def q(server_identifier, exdn, options \\ []) do
@@ -20,7 +43,10 @@ defmodule DatomicGenServer.Db do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.transact(server_identifier, edn_str, options) do          
-          {:ok, reply_str} -> Exdn.to_elixir(reply_str)
+          {:ok, reply_str} -> case Exdn.to_elixir(reply_str) do
+              {:ok, exdn_result} -> transaction(exdn_result)
+              error -> error
+            end
           error -> error
         end
       parse_error -> parse_error
@@ -243,28 +269,51 @@ defmodule DatomicGenServer.Db do
     clause_list = [{:symbol, symbol_atom} | remaining_expressions ]
     {:list, clause_list}
   end
+
+  # Functions for structifying transaction responses
+  @spec transaction(transaction_result) :: DatomicTransaction.t
+  defp transaction(transaction_result) do
+    try do
+      {added_datoms, retracted_datoms} = tx_data(transaction_result) |> to_datoms
+      transaction_struct = %DatomicTransaction{
+                              basis_t_before: basis_t_before(transaction_result), 
+                              basis_t_after: basis_t_after(transaction_result), 
+                              added_datoms: added_datoms, 
+                              retracted_datoms: retracted_datoms, 
+                              tempids: tempids(transaction_result)}
+      {:ok, transaction_struct}
+    rescue
+      e -> {:error, e}
+    end
+  end
   
-  # Functions for dealing with transaction responses
+  @spec to_datoms([datom_map]) :: [Datom.t]
+  defp to_datoms(datom_maps) do
+    datom_maps
+    |> Enum.map(fn(datom_map) -> struct(Datom, datom_map) end) 
+    |> Enum.partition(fn(datom) -> datom.added end)
+  end
+  
   @spec basis_t_before(%{:"db-before" => %{:"basis-t" => integer}}) :: integer
-  def basis_t_before(transaction_result) do
+  defp basis_t_before(transaction_result) do
     %{:"db-before" => %{:"basis-t" => before_t}} = transaction_result
     before_t
   end
   
   @spec basis_t_after(%{:"db-after" => %{:"basis-t" => integer}}) :: integer
-  def basis_t_after(transaction_result) do
+  defp basis_t_after(transaction_result) do
     %{:"db-after" => %{:"basis-t" => after_t}} = transaction_result
     after_t
   end
   
-  @spec tx_data(%{:"tx-data" => [Exdn.exdn]}) :: [Exdn.exdn]
-  def tx_data(transaction_result) do
+  @spec tx_data(%{:"tx-data" => [datom_map]}) :: [Exdn.exdn]
+  defp tx_data(transaction_result) do
     %{:"tx-data" => tx_data} = transaction_result
     tx_data
   end
   
   @spec tempids(%{tempids: %{integer => integer}}) :: %{integer => integer}
-  def tempids(transaction_result) do
+  defp tempids(transaction_result) do
     %{tempids: tempids} = transaction_result
     tempids
   end
