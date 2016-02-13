@@ -57,14 +57,15 @@
 (defn- process-message [message database connection]
   (try
     (match message
-      [:q edn] {:db database :result [:ok (q database edn)]}
-      [:transact edn] (let [result (transact connection edn)]
-                        {:db (result :db-after) :result [:ok (serialize-transaction-response result)]})
-      [:entity edn attr-names] {:db database :result [:ok (entity database edn attr-names)]}
+      ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
+      [:q id edn] {:db database :result [:ok id (q database edn)]}
+      [:transact id edn] (let [result (transact connection edn)]
+                          {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
+      [:entity id edn attr-names] {:db database :result [:ok id (entity database edn attr-names)]}
       [:ping] {:db database :result [:ok (prn-str #{})]}
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
-    (catch Exception e {:db database :result [:error e]})))
+    (catch Exception e {:db database :result [:error message e]})))
 
 (defn- exit-loop [in out] 
   (do

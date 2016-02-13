@@ -1,8 +1,8 @@
 defmodule DatomicGenServer.Db do
-  #TODO Allow passing in converters
+  #TODO Allow passing in converters to make structs from queries
   #TODO Struct for transaction
   
-  # Interface functions to the GenServer
+############################# INTERFACE FUNCTIONS  ############################
   @spec q(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, Exdn.exdn} | {:error, term}
   def q(server_identifier, exdn, options \\ []) do
     case Exdn.from_elixir(exdn) do
@@ -39,6 +39,7 @@ defmodule DatomicGenServer.Db do
     end
   end
 
+############################# DATOMIC SHORTCUTS  ############################
   # Id/ident
   @spec dbid(atom) :: {:tag, :"db/id", [atom]} 
   def dbid(db_part) do

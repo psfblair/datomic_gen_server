@@ -2,8 +2,12 @@ defmodule DatomicGenServerTest do
   use ExUnit.Case, async: false
   
   setup_all do
-    # Need a long timeout to let the JVM start.
-    DatomicGenServer.start_link("datomic:mem://test", true, [{:timeout, 20_000}, {:name, DatomicGenServer}])
+    # Need long timeouts to let the JVM start.
+    DatomicGenServer.start_link(
+      "datomic:mem://test", 
+      true, 
+      [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+    )
     :ok
   end
   

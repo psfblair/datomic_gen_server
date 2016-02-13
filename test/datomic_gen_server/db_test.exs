@@ -3,8 +3,12 @@ defmodule DatomicGenServer.DbTest do
   alias DatomicGenServer.Db, as: Db
   
   setup_all do
-    # Need a long timeout to let the JVM start.
-    DatomicGenServer.start_link("datomic:mem://test", true, [{:timeout, 20_000}, {:name, DatomicGenServer}])
+    # Need long timeouts to let the JVM start.
+    DatomicGenServer.start_link(
+      "datomic:mem://test", 
+      true, 
+      [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+    )
     :ok
   end
   
@@ -96,8 +100,8 @@ defmodule DatomicGenServer.DbTest do
   end
   
   test "Handles garbled transactions" do
-    data_to_add = [%{ Db.id => :foobar }]
-    {:error, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+    data_to_add = [%{ Db.id => :foobar, some: :other }]
+    {:error, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
     assert Regex.match?(~r/Exception/, transaction_result)
   end
   
