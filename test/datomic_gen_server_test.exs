@@ -38,6 +38,23 @@ defmodule DatomicGenServerTest do
     {:ok, result_str} = DatomicGenServer.q(DatomicGenServer, query)
     assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
   end
+  
+  test "can handle multiple messages from different processes" do
+    Enum.each(1..10, (fn(index) -> spawn (fn () -> 
+      data_to_add = """
+        [ { :db/id #db/id[:db.part/db]
+            :db/ident :some/field#{index}
+            :db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one
+            :db/doc \"Field #{index}\"
+            :db.install/_attribute :db.part/db}]
+      """
+      :timer.sleep(:random.uniform(10)) # Mix up the order of sending the messages
+      {:ok, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+      assert Regex.match?(~r/:db-before \{:basis-t \d+/, transaction_result)
+      assert Regex.match?(~r/Field #{index}/, transaction_result)
+    end) end))
+  end
 
   test "can ask for an entity" do
     data_to_add = """
