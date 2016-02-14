@@ -14,11 +14,9 @@ JVM, using clojure-erlastic.
         Db.install_attribute => Db.schema_partition
     }]
 
-    {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
+    Db.transact(DatomicGenServer, data_to_add)
 
-    transaction_result
-
-    # => %DatomicGenServer.Db.DatomicTransaction{
+    # => {:ok, %DatomicGenServer.Db.DatomicTransaction{
             basis_t_after: 1000, 
             basis_t_before: 1000, 
             retracted_datoms: [],
@@ -30,13 +28,13 @@ JVM, using clojure-erlastic.
               %DatomicGenServer.Db.Datom{a: 10, added: true, e: 66, tx: 13194139534313, v: :"person/name"},
               %DatomicGenServer.Db.Datom{a: 40, added: true, e: 66, tx: 13194139534313, v: 23},
               %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
-           tempids: %{-9223367638809264705 => 66}}
+           tempids: %{-9223367638809264705 => 66}}}
 
     query = [:find, Db.q?(:c), :where, [Db.q?(:c), :Db.doc, "A person's name"]]
-    {:ok, query_result} = Db.q(DatomicGenServer, query)
+    
+    Db.q(DatomicGenServer, query)
 
-    query_result
-    # => #MapSet<['B']>  # ASCII representation of ID 66
+    # => {:ok, #MapSet<['B']>}  # ASCII representation of ID 66
 
 ## Installation
 
