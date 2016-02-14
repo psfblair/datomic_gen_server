@@ -30,13 +30,13 @@ JVM, using clojure-erlastic.
               %DatomicGenServer.Db.Datom{a: 10, added: true, e: 64, tx: 13194139534313, v: :"person/name"},
               %DatomicGenServer.Db.Datom{a: 40, added: true, e: 64, tx: 13194139534313, v: 23},
               %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
-           tempids: %{-9223367638809264705 => 64}}
+           tempids: %{-9223367638809264705 => 66}}
 
     query = [:find, Db.q?(:c), :where, [Db.q?(:c), :Db.doc, "A person's name"]]
     {:ok, query_result} = Db.q(DatomicGenServer, query)
 
     query_result
-    # => #MapSet<['B']>
+    # => #MapSet<['B']>  # ASCII representation of ID 66
 
 ## Installation
 
