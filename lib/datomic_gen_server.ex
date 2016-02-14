@@ -17,7 +17,7 @@ defmodule DatomicGenServer do
         [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
       )
       
-      query = "[:find ?c :where [?c :db/doc \"Some docstring that shouldn't be in the database\"]]"
+      query = "[:find ?c :where [?c :db/doc \"Some docstring that isn't in the database\"]]"
       DatomicGenServer.q(DatomicGenServer, query)
       => {:ok, "\#{}\n"}
       
@@ -57,7 +57,8 @@ defmodule DatomicGenServer do
   end
   
 ############################# INTERFACE FUNCTIONS  ############################
-  @doc """Starts the GenServer. This function is basically a pass-through to
+  @doc """
+  Starts the GenServer. This function is basically a pass-through to
   `GenServer.start`, but with some additional parameters: The first is the URL 
   of the Datomic transactor to which to connect, and the second a boolean parameter 
   indicating whether or not to create the database if it does not yet exist. The
@@ -81,7 +82,8 @@ defmodule DatomicGenServer do
     GenServer.start(__MODULE__, params, options_without_name)  
   end
 
-  @doc """Starts the GenServer. This function is basically a pass-through to
+  @doc """
+  Starts the GenServer. This function is basically a pass-through to
   `GenServer.start`, but with some additional parameters: The first is the URL 
   of the Datomic transactor to which to connect, and the second a boolean parameter 
   indicating whether or not to create the database if it does not yet exist. The
@@ -119,6 +121,22 @@ defmodule DatomicGenServer do
   end
 
   @doc """
+  Queries a DatomicGenServer using a query formulated as an edn string.
+  This query is passed to the Datomic `q` API function. The first parameter to
+  this function is the pid or alias of the GenServer process, the second is the 
+  query. The options keyword list may include a `:client_timeout` option
+  that specifies the milliseconds timeout passed to GenServer.call, and a 
+  `:message_timeout` option that specifies how long the GenServer should wait
+  for a response before crashing (overriding the default value set in `start` or
+  `start_link`). Note that if the `:client_timeout` is shorter than the 
+  `:message_timeout` value, the call will return an error but the server will
+  not crash even if the message is never returned from the Clojure peer.
+  
+  ## Example
+  
+    query = "[:find ?c :where [?c :db/doc \"Some docstring that isn't in the database\"]]"
+    DatomicGenServer.q(DatomicGenServer, query)
+    => {:ok, "\#{}\n"}
   """
   @spec q(GenServer.server, String.t, [send_option]) :: datomic_result
   def q(server_identifier, edn_str, options \\ []) do
@@ -127,6 +145,37 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Issues a transaction against a DatomicGenServer using a transaction 
+  formulated as an edn string. This transaction is passed to the Datomic `transact` 
+  API function. The first parameter to this function is the pid or alias of the
+  GenServer process, the second is the transaction data in edn format. The options 
+  keyword list may include a `:client_timeout` option that specifies the milliseconds 
+  timeout passed to GenServer.call, and a `:message_timeout` option that specifies 
+  how long the GenServer should wait for a response before crashing (overriding 
+  the default value set in `start` or `start_link`). Note that if the `:client_timeout` 
+  is shorter than the `:message_timeout` value, the call will return an error but 
+  the server will not crash even if the message is never returned from the Clojure peer.
+  
+  ## Example
+  
+    data_to_add = \"\"\"
+      [ { :db/id #db/id[:db.part/db]
+          :db/ident :person/name
+          :db/valueType :db.type/string
+          :db/cardinality :db.cardinality/one
+          :db/doc \\"A person's name\\"
+          :db.install/_attribute :db.part/db}]
+    \"\"\"
+    {:ok, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+    transaction_result
+    => "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+        :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
+        :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+        :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+        :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+        :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
+        :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"
+  
   """
   @spec transact(GenServer.server, String.t, [send_option]) :: datomic_result
   def transact(server_identifier, edn_str, options \\ []) do
@@ -135,6 +184,23 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Issues an `entity` call to that is passed to the Datomic `entity` 
+  API function. The first parameter to this function is the pid or alias of the
+  GenServer process, the second is an edn string representing the parameter that
+  is to be passed to `entity`: either an entity id, an ident, or a lookup ref.
+  The third parameter is a list of atoms that represent the keys of the attributes 
+  you wish to fetch, or `:all` if you want all the entity's attributes. The options 
+  keyword list may include a `:client_timeout` option that specifies the milliseconds 
+  timeout passed to GenServer.call, and a `:message_timeout` option that specifies 
+  how long the GenServer should wait for a response before crashing (overriding 
+  the default value set in `start` or `start_link`). Note that if the `:client_timeout` 
+  is shorter than the `:message_timeout` value, the call will return an error but 
+  the server will not crash even if the message is never returned from the Clojure peer.
+  
+  ## Example
+  
+    DatomicGenServer.entity(DatomicGenServer, ":person/email", [:"db/valueType", :"db/doc"])
+    => "{:db/valueType :db.type/string, :db/doc \"A person's email\"}\n"
   """
   @spec entity(GenServer.server, String.t, [atom] | :all, [send_option]) :: datomic_result
   def entity(server_identifier, edn_str, attr_names \\ :all, options \\ []) do
@@ -162,14 +228,6 @@ defmodule DatomicGenServer do
     {message_timeout, client_timeout}
   end
   
-  @doc """
-  """
-  @spec exit :: {:stop, :normal}
-  def exit() do
-    _ = Logger.warn("exit called on DatomicGenServer.")
-    {:stop, :normal}
-  end
-  
 ############################# CALLBACK FUNCTIONS  ##############################
   @doc """
   """
@@ -191,6 +249,10 @@ defmodule DatomicGenServer do
     working_directory = "#{:code.priv_dir(:datomic_gen_server)}/datomic_gen_server_peer"
     command = "java -cp target/peer*standalone.jar datomic_gen_server.peer #{db_uri} #{create_str}"
     {working_directory, command}
+  end
+  
+  defp my_name do
+    Process.info(self) |> Keyword.get(:registered_name) || self |> inspect
   end
 
   @doc """
@@ -221,10 +283,6 @@ defmodule DatomicGenServer do
   def handle_info({:EXIT, _, _}, _) do
     _ = Logger.warn("DatomicGenServer #{my_name} received exit message.")
     exit(:port_terminated)
-  end
-
-  defp my_name do
-    Process.info(self) |> Keyword.get(:registered_name) || self |> inspect
   end
   
   @doc """
