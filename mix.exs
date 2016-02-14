@@ -5,6 +5,11 @@ defmodule DatomicGenServer.Mixfile do
     [app: :datomic_gen_server,
      version: "1.0.0",
      elixir: "~> 1.2",
+     description: """
+       An Elixir GenServer that communicates with a Clojure Datomic peer running 
+       in the JVM, using clojure-erlastic.
+       """,
+     package: package,
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      deps: deps,
@@ -36,6 +41,12 @@ defmodule DatomicGenServer.Mixfile do
     [ {:clean,   ["clean",   &clean_uberjars/1]},
       {:compile, ["compile", &uberjar/1]}
     ]
+  end
+  
+  defp package do
+    [maintainers: ["Paul Blair"],
+     licenses: ["MIT"],
+     links: %{github: "https://github.com/psfblair/datomic_gen_server"}]
   end
 
   defp clean_uberjars(_) do
