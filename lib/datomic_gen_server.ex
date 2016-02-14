@@ -1,7 +1,44 @@
 defmodule DatomicGenServer do
   use GenServer
   require Logger
+  @moduledoc """
+    DatomicGenServer is an Elixir GenServer that communicates with a Clojure 
+    Datomic peer running in the JVM, using clojure-erlastic.
 
+    The interface functions in this module communicate with Datomic using edn
+    strings. To use Elixir data structures, see the accompanying `DatomicGenServer.db`
+    module.
+
+    ## Examples
+    
+      DatomicGenServer.start(
+        "datomic:mem://test", 
+        true, 
+        [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+      )
+      
+      query = "[:find ?c :where [?c :db/doc \"Some docstring that shouldn't be in the database\"]]"
+      DatomicGenServer.q(DatomicGenServer, query)
+      => {:ok, "\#{}\n"}
+      
+      data_to_add = \"\"\"
+        [ { :db/id #db/id[:db.part/db]
+            :db/ident :person/name
+            :db/valueType :db.type/string
+            :db/cardinality :db.cardinality/one
+            :db/doc \\"A person's name\\"
+            :db.install/_attribute :db.part/db}]
+      \"\"\"
+      {:ok, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+      transaction_result
+      => "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+          :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
+          :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+          :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+          :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+          :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
+          :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"
+  """
   @type datomic_message :: {:q, integer, String.t} | 
                            {:transact, integer, String.t} | 
                            {:entity, integer, String.t, [atom] | :all}
@@ -20,12 +57,48 @@ defmodule DatomicGenServer do
   end
   
 ############################# INTERFACE FUNCTIONS  ############################
+  @doc """Starts the GenServer. This function is basically a pass-through to
+  `GenServer.start`, but with some additional parameters: The first is the URL 
+  of the Datomic transactor to which to connect, and the second a boolean parameter 
+  indicating whether or not to create the database if it does not yet exist. The
+  options keyword list may include the normal options accepted by `GenServer.start`, 
+  as well as a `:default_message_timeout` option that controls the default time in 
+  milliseconds that the server will wait for a message before crashing. Note that
+  if the `:timeout` option is provided, the GenServer will crash if that timeout
+  is exceeded.
+  
+  ## Example
+  
+    DatomicGenServer.start(
+      "datomic:mem://test", 
+      true, 
+      [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+    )
+  """
   @spec start(String.t, boolean, [start_option]) :: GenServer.on_start
   def start(db_uri, create? \\ false, options \\ []) do
     {params, options_without_name} = startup_params(db_uri, create?, options)
     GenServer.start(__MODULE__, params, options_without_name)  
   end
 
+  @doc """Starts the GenServer. This function is basically a pass-through to
+  `GenServer.start`, but with some additional parameters: The first is the URL 
+  of the Datomic transactor to which to connect, and the second a boolean parameter 
+  indicating whether or not to create the database if it does not yet exist. The
+  options keyword list may include the normal options accepted by `GenServer.start_link`, 
+  as well as a `:default_message_timeout` option that controls the default time in 
+  milliseconds that the server will wait for a message before crashing. Note that
+  if the `:timeout` option is provided, the GenServer will crash if that timeout
+  is exceeded.
+  
+  ## Example
+  
+    DatomicGenServer.start_link(
+      "datomic:mem://test", 
+      true, 
+      [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+    )
+  """
   @spec start_link(String.t, boolean, [start_option]) :: GenServer.on_start
   def start_link(db_uri, create? \\ false, options \\ []) do
     {params, options_without_name} = startup_params(db_uri, create?, options)
@@ -45,18 +118,24 @@ defmodule DatomicGenServer do
     {params, options}
   end
 
+  @doc """
+  """
   @spec q(GenServer.server, String.t, [send_option]) :: datomic_result
   def q(server_identifier, edn_str, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:q, msg_unique_id, edn_str}, options)
   end
   
+  @doc """
+  """
   @spec transact(GenServer.server, String.t, [send_option]) :: datomic_result
   def transact(server_identifier, edn_str, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:transact, msg_unique_id, edn_str}, options)
   end
   
+  @doc """
+  """
   @spec entity(GenServer.server, String.t, [atom] | :all, [send_option]) :: datomic_result
   def entity(server_identifier, edn_str, attr_names \\ :all, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
@@ -83,6 +162,8 @@ defmodule DatomicGenServer do
     {message_timeout, client_timeout}
   end
   
+  @doc """
+  """
   @spec exit :: {:stop, :normal}
   def exit() do
     _ = Logger.warn("exit called on DatomicGenServer.")
@@ -90,6 +171,8 @@ defmodule DatomicGenServer do
   end
   
 ############################# CALLBACK FUNCTIONS  ##############################
+  @doc """
+  """
   @spec init({String.t, boolean, GenServer.name | nil, non_neg_integer, non_neg_integer}) :: {:ok, ProcessState.t}
   def init({db_uri, create?, maybe_process_identifier, startup_wait_millis, default_message_timeout_millis}) do
     # Trapping exits actually does what we want here - i.e., allows us to exit
@@ -110,6 +193,8 @@ defmodule DatomicGenServer do
     {working_directory, command}
   end
 
+  @doc """
+  """
   @spec handle_info({:initialize_jvm, String.t, boolean, non_neg_integer}, ProcessState.t) :: {:noreply, ProcessState.t}
   def handle_info({:initialize_jvm, db_uri, create?, startup_wait_millis}, state) do
     {working_directory, command} = start_jvm_command(db_uri, create?)
@@ -130,6 +215,8 @@ defmodule DatomicGenServer do
     end
   end
   
+  @doc """
+  """
   @spec handle_info({:EXIT, port, term}, ProcessState.t) :: no_return
   def handle_info({:EXIT, _, _}, _) do
     _ = Logger.warn("DatomicGenServer #{my_name} received exit message.")
@@ -140,12 +227,16 @@ defmodule DatomicGenServer do
     Process.info(self) |> Keyword.get(:registered_name) || self |> inspect
   end
   
+  @doc """
+  """
   # Not sure how to do spec for this catch-all case without Dialyzer telling me
   # I have overlapping domains.
   def handle_info(_, state) do
    {:noreply, state}
  end
 
+ @doc """
+ """
   @spec handle_call(datomic_call, term, ProcessState.t) :: {:reply, datomic_result, ProcessState.t}
   def handle_call(message, _, state) do
     port = state.port
@@ -191,6 +282,8 @@ defmodule DatomicGenServer do
     end
   end
   
+  @doc """
+  """
   @spec handle_cast(datomic_message, ProcessState.t) :: {:noreply, ProcessState.t}
   def handle_cast(message, state) do
     port = state.port
@@ -198,6 +291,8 @@ defmodule DatomicGenServer do
     {:noreply, state}
   end
   
+  @doc """
+  """
   @spec terminate(reason :: term, state :: ProcessState.t) :: true
   def terminate(reason, _) do
     # Normal shutdown; die ASAP

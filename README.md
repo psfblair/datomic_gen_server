@@ -68,6 +68,10 @@ The `entity` functions in both `DatomicGenServer` and `DatomicGenServer.Db` allo
 passing in a list of keys representing the attributes you wish to fetch, or `:all` 
 if you want all of them.
 
+The `DatomicGenServer.Db` module also contains shortcuts for many common Datomic
+keys and values, which would otherwise require a lot of additional punctuation 
+in Elixir.
+
 ## Limitations
 
 Currently all interaction with Datomic is synchronous and there is no support for
