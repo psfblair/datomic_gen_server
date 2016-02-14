@@ -34,7 +34,7 @@ defmodule DatomicGenServer.Db do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.q(server_identifier, edn_str, options) do
-          {:ok, reply_str} -> convert_query_response(reply_str)
+          {:ok, reply_str} -> convert_query_response(reply_str, options)
           error -> error
         end
       parse_error -> parse_error
@@ -61,16 +61,18 @@ defmodule DatomicGenServer.Db do
     case Exdn.from_elixir(exdn) do
       {:ok, edn_str} -> 
         case DatomicGenServer.entity(server_identifier, edn_str, attr_names, options) do          
-          {:ok, reply_str} -> convert_query_response(reply_str)
+          {:ok, reply_str} -> convert_query_response(reply_str, options)
           error -> error
         end
       parse_error -> parse_error
     end
   end
 
-  @spec convert_query_response(String.t) :: {:ok, term} | {:error, term}
-  defp convert_query_response(response_str) do
-    Exdn.to_elixir(response_str)
+  @spec convert_query_response(String.t, [query_option]) :: {:ok, term} | {:error, term}
+  defp convert_query_response(response_str, options) do
+    converter = Keyword.get(options, :response_converter) || (fn x -> x end)
+    handlers = Keyword.get(options, :edn_tag_handlers) || Exdn.standard_handlers
+    Exdn.to_elixir(response_str, converter, handlers)
   end
   
 ############################# DATOMIC SHORTCUTS  ############################
@@ -278,7 +280,7 @@ defmodule DatomicGenServer.Db do
     {:list, clause_list}
   end
 
-  # Functions for structifying transaction responses
+########## PRIVATE FUNCTIONS FOR STRUCTIFYING TRANSACTION RESPONSES #############
   @spec transaction(transaction_result) :: {:ok, DatomicTransaction.t} | {:error, term}
   defp transaction(transaction_result) do
     try do

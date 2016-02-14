@@ -90,6 +90,68 @@ defmodule DatomicGenServer.DbTest do
     {:ok, entity_result4} = Db.entity(DatomicGenServer, [Db.ident, :"person/email"], [Db.cardinality])
     assert %{Db.cardinality => Db.cardinality_one} == entity_result4
   end
+  
+  defmodule TestQueryResponse do
+    defstruct id: nil, identity: nil
+  end
+
+  test "Can convert a query response to a list of structs" do
+    seed_data = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"business/name",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A business's name",
+        Db.install_attribute => Db.schema_partition
+    }]
+    {:ok, _} = Db.transact(DatomicGenServer, seed_data)
+    
+    converter = fn(exdn) -> 
+      case exdn do
+        [id, ident] -> %TestQueryResponse{id: id, identity: ident}
+        _ -> exdn
+      end
+    end
+    
+    query = [:find, Db.q?(:e), Db.q?(:ident), 
+             :where, [Db.q?(:e), :"db/doc", "A business's name"],
+                     [Db.q?(:e), Db.ident, Db.q?(:ident)]]
+    {:ok, query_result} = Db.q(DatomicGenServer, query, [{:response_converter, converter}])
+    [%TestQueryResponse{id: entity_id, identity: :"business/name"}] = MapSet.to_list(query_result)
+    assert is_integer(entity_id)
+  end
+  
+  defmodule TestEntityResponse do
+    defstruct "db/ident": nil, "db/valueType": nil, "db/cardinality": nil, "db/doc": nil
+  end
+  
+  test "Can convert an entity response to a struct" do
+    seed_data = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"business/email",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A business's email",
+        Db.install_attribute => Db.schema_partition
+    }]
+    
+    {:ok, _} = Db.transact(DatomicGenServer, seed_data)
+    
+    converter = fn(exdn) -> 
+      case exdn do
+        %{"db/ident": _} -> struct(TestEntityResponse, exdn) 
+        _ -> exdn
+      end
+    end
+
+    {:ok, entity_result} = Db.entity(DatomicGenServer, :"business/email", :all, [{:response_converter, converter}])
+    
+    %TestEntityResponse{
+        "db/ident": :"business/email", 
+        "db/valueType": :"db.type/string", 
+        "db/cardinality": :"db.cardinality/one", 
+        "db/doc": "A business's email" } = entity_result
+  end
 
   test "Handles garbled queries" do
     query = [:find, Db.q?(:c), :"wh?ere"]
