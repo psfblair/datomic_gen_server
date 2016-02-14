@@ -25,10 +25,10 @@ JVM, using clojure-erlastic.
             added_datoms: [%DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534313, tx: 13194139534313,
                v: %Calendar.DateTime{abbr: "UTC", day: 14, hour: 5, min: 56, month: 2, sec: 53, std_off: 0, 
                                      timezone: "Etc/UTC", usec: 400000, utc_off: 0, year: 2016}},
-              %DatomicGenServer.Db.Datom{a: 41, added: true, e: 64, tx: 13194139534313, v: 35},
-              %DatomicGenServer.Db.Datom{a: 62, added: true, e: 64, tx: 13194139534313, v: "A person's name"},
-              %DatomicGenServer.Db.Datom{a: 10, added: true, e: 64, tx: 13194139534313, v: :"person/name"},
-              %DatomicGenServer.Db.Datom{a: 40, added: true, e: 64, tx: 13194139534313, v: 23},
+              %DatomicGenServer.Db.Datom{a: 41, added: true, e: 66, tx: 13194139534313, v: 35},
+              %DatomicGenServer.Db.Datom{a: 62, added: true, e: 66, tx: 13194139534313, v: "A person's name"},
+              %DatomicGenServer.Db.Datom{a: 10, added: true, e: 66, tx: 13194139534313, v: :"person/name"},
+              %DatomicGenServer.Db.Datom{a: 40, added: true, e: 66, tx: 13194139534313, v: 23},
               %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
            tempids: %{-9223367638809264705 => 66}}
 
