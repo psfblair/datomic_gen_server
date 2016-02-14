@@ -3,6 +3,41 @@
 An Elixir GenServer that communicates with a Clojure Datomic peer running in the 
 JVM, using clojure-erlastic.
 
+## Example
+
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/name",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's name",
+        Db.install_attribute => Db.schema_partition
+    }]
+
+    {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
+
+    transaction_result
+
+    # => %DatomicGenServer.Db.DatomicTransaction{
+            basis_t_after: 1000, 
+            basis_t_before: 1000, 
+            retracted_datoms: [],
+            added_datoms: [%DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534313, tx: 13194139534313,
+               v: %Calendar.DateTime{abbr: "UTC", day: 14, hour: 5, min: 56, month: 2, sec: 53, std_off: 0, 
+                                     timezone: "Etc/UTC", usec: 400000, utc_off: 0, year: 2016}},
+              %DatomicGenServer.Db.Datom{a: 41, added: true, e: 64, tx: 13194139534313, v: 35},
+              %DatomicGenServer.Db.Datom{a: 62, added: true, e: 64, tx: 13194139534313, v: "A person's name"},
+              %DatomicGenServer.Db.Datom{a: 10, added: true, e: 64, tx: 13194139534313, v: :"person/name"},
+              %DatomicGenServer.Db.Datom{a: 40, added: true, e: 64, tx: 13194139534313, v: 23},
+              %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
+           tempids: %{-9223367638809264705 => 64}}
+
+    query = [:find, Db.q?(:c), :where, [Db.q?(:c), :Db.doc, "A person's name"]]
+    {:ok, query_result} = Db.q(DatomicGenServer, query)
+
+    query_result
+    # => #MapSet<['B']>
+
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
@@ -25,7 +60,7 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
      your application environment default values to control the default amount of 
      time the GenServer waits for the JVM to start before crashing, and the default 
      amount of time it waits for a reply from the JVM peer before crashing. See
-     the config/config.exs file for an example.
+     the `config/config.exs` file for an example.
      
   4. Ensure datomic_gen_server (as well as Logger and Calendar) is started before 
      your application:
@@ -79,10 +114,10 @@ functions such as `transact-async`. Implementing this support may be somewhat
 complicated owing to the way in which the GenServer waits for replies from the
 Clojure peer (see the comments on `DatomicGenServer.wait_for_reply`).
 
-Queries and transactions are passed to Datomic as edn strings, and results come
-back as edn strings. Certain of the Datomic APIs return references to Java 
-objects, which can't be manipulated from Elixir (e.g., a call to `entity` returns
-a dynamic map); where possible the related data is translated to edn to be 
+Queries and transactions are passed to the Clojure peer as edn strings, and results 
+come back as edn strings. Certain Datomic APIs return references to Java objects,
+which can't be manipulated from Elixir (e.g., a call to `entity` returns a 
+dynamic map); where possible the related data is translated to edn to be 
 returned to the GenServer.
 
 There may be ways to take better advantage of clojure-erlastic to serialize data 

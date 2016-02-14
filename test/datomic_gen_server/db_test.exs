@@ -13,7 +13,7 @@ defmodule DatomicGenServer.DbTest do
   end
   
   test "can issue Datomic queries" do
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), :"db/doc", "Some docstring that shouldn't be in the database"]]
+    query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "Some docstring that shouldn't be in the database"]]
     result = Db.q(DatomicGenServer, query)
     
     empty_set = MapSet.new()
@@ -55,7 +55,7 @@ defmodule DatomicGenServer.DbTest do
     assert (Map.keys(tempids) |> hd |> is_integer)
     assert (Map.values(tempids) |> hd |> is_integer)
 
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), :"db/doc", "A person's name"]]
+    query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
     {:ok, query_result} = Db.q(DatomicGenServer, query)
     assert 1 == Enum.count(query_result)
   end
@@ -85,7 +85,7 @@ defmodule DatomicGenServer.DbTest do
     assert all_attributes == entity_result2
 
     {:ok, entity_result3} = Db.entity(DatomicGenServer, :"person/email", [Db.value_type, Db.doc])
-    assert %{Db.value_type => :"db.type/string", Db.doc => "A person's email"} == entity_result3
+    assert %{Db.value_type => Db.type_string, Db.doc => "A person's email"} == entity_result3
      
     {:ok, entity_result4} = Db.entity(DatomicGenServer, [Db.ident, :"person/email"], [Db.cardinality])
     assert %{Db.cardinality => Db.cardinality_one} == entity_result4
