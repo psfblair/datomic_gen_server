@@ -230,6 +230,13 @@ defmodule DatomicGenServer do
   
 ############################# CALLBACK FUNCTIONS  ##############################
   @doc """
+  Implements the GenServer `init` callback. On start, the server sends itself an 
+  initial message to start the JVM, then registers itself under any alias provided. 
+  Any messages sent to the server by clients at startup will arrive after the 
+  initialization message, and will need to wait until the JVM starts and initialization 
+  is complete. Thus, it is important that the timeouts on messages sent to the 
+  server exceed the startup timeout value, at least for the messages sent during 
+  the startup phase.
   """
   @spec init({String.t, boolean, GenServer.name | nil, non_neg_integer, non_neg_integer}) :: {:ok, ProcessState.t}
   def init({db_uri, create?, maybe_process_identifier, startup_wait_millis, default_message_timeout_millis}) do
@@ -256,6 +263,8 @@ defmodule DatomicGenServer do
   end
 
   @doc """
+  Implements the GenServer `handle_info` callback for the initial message that 
+  starts the JVM. Clients should not send this message to the GenServer.
   """
   @spec handle_info({:initialize_jvm, String.t, boolean, non_neg_integer}, ProcessState.t) :: {:noreply, ProcessState.t}
   def handle_info({:initialize_jvm, db_uri, create?, startup_wait_millis}, state) do
@@ -278,6 +287,7 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Implements the GenServer `handle_info` callback to handle exit messages. 
   """
   @spec handle_info({:EXIT, port, term}, ProcessState.t) :: no_return
   def handle_info({:EXIT, _, _}, _) do
@@ -286,6 +296,8 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Do-nothing implementation of the GenServer `handle_info` callback as a 
+  catch-all case. 
   """
   # Not sure how to do spec for this catch-all case without Dialyzer telling me
   # I have overlapping domains.
@@ -294,6 +306,11 @@ defmodule DatomicGenServer do
  end
 
  @doc """
+ Implements the GenServer `handle_call` callback to handle client messages. This
+ function sends a message to the Clojure peer that is run on a port, and waits 
+ for a response from the peer with the same message ID. Messages that are returned
+ from the port with different message IDs (for example, responses to earlier
+ requests that timed out) are discarded. 
  """
   @spec handle_call(datomic_call, term, ProcessState.t) :: {:reply, datomic_result, ProcessState.t}
   def handle_call(message, _, state) do
@@ -341,19 +358,16 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Implements the GenServer `handle_cast` callback to handle client messages. This
+  function sends a message to the Clojure peer that is run on a port, but does
+  not wait for the result. Responses from the peer will be discarded either in 
+  the `wait_for_reply` loop called by `handle_call`, or in the `handle_info` 
+  do-nothing catch-all function.
   """
   @spec handle_cast(datomic_message, ProcessState.t) :: {:noreply, ProcessState.t}
   def handle_cast(message, state) do
     port = state.port
     send(port, {self, {:command, :erlang.term_to_binary(message)}})
     {:noreply, state}
-  end
-  
-  @doc """
-  """
-  @spec terminate(reason :: term, state :: ProcessState.t) :: true
-  def terminate(reason, _) do
-    # Normal shutdown; die ASAP
-    Process.exit(self, reason)
   end
 end
