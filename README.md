@@ -69,7 +69,7 @@ If available in Hex, the package can be installed as follows:
         
 ## Usage
 
-See the Hex docs at [http://hexdocs.pm/exdn/](http://hexdocs.pm/exdn/).
+See the Hex docs at [http://hexdocs.pm/datomic_gen_server/](http://hexdocs.pm/datomic_gen_server/).
 
 Start the server by calling `DatomicGenServer.start` or `DatomicGenServer.start_link`.
 These functions accept the URL of the Datomic transactor to which to connect, a
