@@ -107,6 +107,9 @@ in Elixir.
 
 ## Limitations
 
+This code has not been checked for possible injection vulnerabilities. Use at 
+your own risk.
+
 Currently all interaction with Datomic is synchronous and there is no support for
 functions such as `transact-async`. Implementing this support may be somewhat
 complicated owing to the way in which the GenServer waits for replies from the

@@ -19,6 +19,7 @@ defmodule DatomicGenServer do
       
       query = "[:find ?c :where [?c :db/doc \"Some docstring that isn't in the database\"]]"
       DatomicGenServer.q(DatomicGenServer, query)
+      
       => {:ok, "\#{}\n"}
       
       data_to_add = \"\"\"
@@ -29,15 +30,16 @@ defmodule DatomicGenServer do
             :db/doc \\"A person's name\\"
             :db.install/_attribute :db.part/db}]
       \"\"\"
-      {:ok, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
-      transaction_result
-      => "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
-          :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
-          :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
-          :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
-          :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
-          :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
-          :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"
+      
+      DatomicGenServer.transact(DatomicGenServer, data_to_add)
+
+      => {:ok, "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+                :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
+                :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+                :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+                :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+                :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
+                :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"}
   """
   @type datomic_message :: {:q, integer, String.t} | 
                            {:transact, integer, String.t} | 
@@ -130,12 +132,13 @@ defmodule DatomicGenServer do
   for a response before crashing (overriding the default value set in `start` or
   `start_link`). Note that if the `:client_timeout` is shorter than the 
   `:message_timeout` value, the call will return an error but the server will
-  not crash even if the message is never returned from the Clojure peer.
+  not crash even if the response message is never returned from the Clojure peer.
   
   ## Example
   
     query = "[:find ?c :where [?c :db/doc \"Some docstring that isn't in the database\"]]"
     DatomicGenServer.q(DatomicGenServer, query)
+    
     => {:ok, "\#{}\n"}
   """
   @spec q(GenServer.server, String.t, [send_option]) :: datomic_result
@@ -154,7 +157,8 @@ defmodule DatomicGenServer do
   how long the GenServer should wait for a response before crashing (overriding 
   the default value set in `start` or `start_link`). Note that if the `:client_timeout` 
   is shorter than the `:message_timeout` value, the call will return an error but 
-  the server will not crash even if the message is never returned from the Clojure peer.
+  the server will not crash even if the response message is never returned from 
+  the Clojure peer.
   
   ## Example
   
@@ -166,15 +170,16 @@ defmodule DatomicGenServer do
           :db/doc \\"A person's name\\"
           :db.install/_attribute :db.part/db}]
     \"\"\"
-    {:ok, transaction_result} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
-    transaction_result
-    => "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
-        :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
-        :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
-        :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
-        :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
-        :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
-        :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"
+    
+    DatomicGenServer.transact(DatomicGenServer, data_to_add)
+    
+    => {:ok, "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+              :tx-data [{:a 50, :e 13194139534313, :v #inst \\"2016-02-14T02:10:54.580-00:00\\", 
+              :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+              :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+              :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+              :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
+              :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"}
   
   """
   @spec transact(GenServer.server, String.t, [send_option]) :: datomic_result
@@ -200,6 +205,7 @@ defmodule DatomicGenServer do
   ## Example
   
     DatomicGenServer.entity(DatomicGenServer, ":person/email", [:"db/valueType", :"db/doc"])
+    
     => "{:db/valueType :db.type/string, :db/doc \"A person's email\"}\n"
   """
   @spec entity(GenServer.server, String.t, [atom] | :all, [send_option]) :: datomic_result
