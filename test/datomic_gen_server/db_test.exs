@@ -36,6 +36,7 @@ defmodule DatomicGenServer.DbTest do
     {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
     assert is_integer(transaction_result.basis_t_before)
     assert is_integer(transaction_result.basis_t_after)
+    assert (transaction_result.basis_t_after - transaction_result.basis_t_before) > 0
     
     retracted_datoms = transaction_result.retracted_datoms
     assert 0 == Enum.count(retracted_datoms)

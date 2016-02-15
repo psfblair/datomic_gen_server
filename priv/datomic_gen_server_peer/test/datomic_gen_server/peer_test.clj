@@ -54,6 +54,8 @@
       (is (= java.lang.Long (type ((edn-data :db-after) :basis-t))))
       ; TODO Can we get this somehow?
       ; (is (= "test" ((edn-data :db-after) :db/alias)))
+      (is (< 0 (- ((edn-data :db-after) :basis-t) ((edn-data :db-before) :basis-t))))
+      
       (is (= 6 (count (edn-data :tx-data))))
       (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :e))))
       (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :a))))
@@ -74,7 +76,7 @@
   (let [datom (some #(if (= (% :v) value) %) tx-data)]
     (datom :e)))
   
-(deftest test-round-trip
+(deftest test-entity
   (testing "Can ask for an entity"
     (>!! in [:transact 4 "[ {:db/id #db/id[:db.part/db]
                            :db/ident :person/email
@@ -82,7 +84,6 @@
                            :db/cardinality :db.cardinality/one
                            :db/doc \"A person's email\"
                            :db.install/_attribute :db.part/db}]"])
-    
     (let [edn-data (read-edn-response (<!! out))
           ; We get different entities back in the transaction response. Get the email one
           entity-id (entity-id-for-value (edn-data :tx-data) :person/email)]

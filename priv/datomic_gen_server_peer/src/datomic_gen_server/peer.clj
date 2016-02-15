@@ -41,7 +41,7 @@
 (defn- serialize-transaction-response [transaction-response]
   (let [db-before (transaction-response :db-before)
         before-basis-t (datomic/basis-t db-before)
-        db-after (transaction-response :db-before)
+        db-after (transaction-response :db-after)
         after-basis-t (datomic/basis-t db-after)
         tx-data (transaction-response :tx-data)]
     (prn-str 

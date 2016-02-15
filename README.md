@@ -17,7 +17,7 @@ JVM, using clojure-erlastic.
     Db.transact(DatomicGenServer, data_to_add)
 
     # => {:ok, %DatomicGenServer.Db.DatomicTransaction{
-            basis_t_after: 1000, 
+            basis_t_after: 1001, 
             basis_t_before: 1000, 
             retracted_datoms: [],
             added_datoms: [%DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534313, tx: 13194139534313,
