@@ -6,44 +6,140 @@ defmodule DatomicGenServer.Db do
     and return Elixir data structures, and also provides slightly more syntactically
     pleasant equivalents for Datomic keys and structures that would otherwise
     need to be represented using a lot of punctuation that isn't required in Clojure.
-
-    ## Examples
     
-    DatomicGenServer.start(
-      "datomic:mem://test", 
-      true, 
-      [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
-    )
-
-    data_to_add = [%{ 
-        Db.id => Db.dbid(Db.schema_partition),
-        Db.ident => :"person/name",
-        Db.value_type => Db.type_string,
-        Db.cardinality => Db.cardinality_one,
-        Db.doc => "A person's name",
-        Db.install_attribute => Db.schema_partition
-    }]
-    Db.transact(DatomicGenServer, data_to_add)
+    The hexdoc organizes the functions in this module alphabetically; here is a 
+    list by topic:
     
-    # => {:ok, %DatomicGenServer.Db.DatomicTransaction{
-            basis_t_before: 1001,   
-            basis_t_after: 1002, 
-            retracted_datoms: [],
-            added_datoms: [
-              %DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534314, tx: 13194139534314, 
-                  v: %Calendar.DateTime{abbr: "UTC", day: 15, hour: 3, min: 20, month: 2, sec: 1, std_off: 0, 
-                                        timezone: "Etc/UTC", usec: 746000, utc_off: 0, year: 2016}},
-              %DatomicGenServer.Db.Datom{a: 41, added: true, e: 65, tx: 13194139534314, v: 35},
-              %DatomicGenServer.Db.Datom{a: 62, added: true, e: 65, tx: 13194139534314, v: "A person's name"},
-              %DatomicGenServer.Db.Datom{a: 10, added: true, e: 65, tx: 13194139534314, v: :"person/name"},
-              %DatomicGenServer.Db.Datom{a: 40, added: true, e: 65, tx: 13194139534314, v: 23},
-              %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534314, v: 65}],
-            tempids: %{-9223367638809264706 => 65}}}
+## Interface functions    
 
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
-    Db.q(DatomicGenServer, query)
+      q(server_identifier, exdn, options \\ [])
+      transact(server_identifier, exdn, options \\ [])
+      entity(server_identifier, exdn, attr_names \\ :all, options \\ [])
 
-    #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
+## Datomic Shortcuts
+### Id/ident
+
+      dbid(db_part)
+      id
+      ident
+
+### Transaction creation
+
+      add
+      retract
+      install_attribute
+      alter_attribute
+      tx_instant
+
+### Value types
+
+      value_type
+      type_long
+      type_keyword
+      type_string
+      type_boolean
+      type_bigint
+      type_float
+      type_double
+      type_bigdec
+      type_ref
+      type_instant
+      type_uuid
+      type_uri
+      type_bytes
+
+### Cardinalities
+
+      cardinality
+      cardinality_one
+      cardinality_many
+  
+### Optional Schema Attributes
+
+      doc
+      unique
+      unique_value
+      unique_identity
+      index
+      fulltext
+      is_component
+      no_history
+  
+### Functions
+
+      _fn
+      fn_retract_entity
+      fn_cas
+
+### Common partions
+
+      schema_partition
+      transaction_partition
+      user_partition
+
+### Query placeholders
+
+      q?(atom)
+
+### Data sources
+
+      implicit
+      inS(placeholder_atom)
+
+### Bindings and find specifications
+
+      single_scalar
+      blank_binding
+      collection_binding(placeholder_atom)
+
+### Clauses
+
+      _not(inner_clause)
+      _not_join(binding_list, inner_clause_list)
+      _or(inner_clauses)
+      _or_join(binding_list, inner_clause_list)
+      _and(inner_clauses)
+      _pull({:symbol, entity_var}, pattern_clauses)
+      _expr(function_symbol, remaining_expressions, bindings)
+
+## Examples
+    
+      DatomicGenServer.start(
+        "datomic:mem://test", 
+        true, 
+        [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+      )
+
+      data_to_add = [%{ 
+          Db.id => Db.dbid(Db.schema_partition),
+          Db.ident => :"person/name",
+          Db.value_type => Db.type_string,
+          Db.cardinality => Db.cardinality_one,
+          Db.doc => "A person's name",
+          Db.install_attribute => Db.schema_partition
+      }]
+      Db.transact(DatomicGenServer, data_to_add)
+      
+      # => {:ok, %DatomicGenServer.Db.DatomicTransaction{
+              basis_t_before: 1001,   
+              basis_t_after: 1002, 
+              retracted_datoms: [],
+              added_datoms: [
+                %DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534314, tx: 13194139534314, 
+                    v: %Calendar.DateTime{abbr: "UTC", day: 15, hour: 3, min: 20, month: 2, sec: 1, std_off: 0, 
+                                          timezone: "Etc/UTC", usec: 746000, utc_off: 0, year: 2016}},
+                %DatomicGenServer.Db.Datom{a: 41, added: true, e: 65, tx: 13194139534314, v: 35},
+                %DatomicGenServer.Db.Datom{a: 62, added: true, e: 65, tx: 13194139534314, v: "A person's name"},
+                %DatomicGenServer.Db.Datom{a: 10, added: true, e: 65, tx: 13194139534314, v: :"person/name"},
+                %DatomicGenServer.Db.Datom{a: 40, added: true, e: 65, tx: 13194139534314, v: 23},
+                %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534314, v: 65}],
+              tempids: %{-9223367638809264706 => 65}}}
+
+      query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
+      Db.q(DatomicGenServer, query)
+
+      #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
+      
   """
   #TODO Use type Exdn.converter in signature instead of (Exdn.exdn -> term)
   @type query_option :: DatomicGenServer.send_option | 
@@ -78,22 +174,26 @@ defmodule DatomicGenServer.Db do
   @doc """
   Queries a DatomicGenServer using a query formulated as an Elixir list.
   This query is translated to an edn string which is then passed to the Datomic 
-  `q` API function. The first parameter to this function is the pid or alias of 
-  the GenServer process, the second is the query. The options keyword list may 
-  include a `:client_timeout` option that specifies the milliseconds timeout 
-  passed to GenServer.call, and a `:message_timeout` option that specifies how 
-  long the GenServer should wait for a response before crashing (overriding the 
-  default value set in `DatomicGenServer.start` or `DatomicGenServer.start_link`).
-  Note that if the `:client_timeout` is shorter than the `:message_timeout` 
-  value, the call will return an error but the server will not crash even if the 
-  response message is never returned from the Clojure peer.
+  `q` API function. 
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is the query. 
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to `GenServer.call`, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `DatomicGenServer.start` or 
+  `DatomicGenServer.start_link`). Note that if the `:client_timeout` is shorter 
+  than the `:message_timeout` value, the call will return an error but the server 
+  will not crash even if the response message is never returned from the Clojure peer.
 
-  ## Example
+## Example
 
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
-    Db.q(DatomicGenServer, query)
+      query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
+      Db.q(DatomicGenServer, query)
 
-    #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
+      #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
+      
   """
 
   @spec q(GenServer.server, [Exdn.exdn], [query_option]) :: {:ok, term} | {:error, term}
@@ -111,18 +211,20 @@ defmodule DatomicGenServer.Db do
   @doc """
   Issues a transaction against a DatomicGenServer using a transaction 
   formulated as an Elixir list of maps. This transaction is translated to an edn
-  string which is then passed to the Datomic `transact` API function. The first 
-  parameter to this function is the pid or alias of the GenServer process, the 
-  second is the transaction data. The options keyword list may include a 
-  `:client_timeout` option that specifies the milliseconds timeout passed to 
-  GenServer.call, and a `:message_timeout` option that specifies how long the 
-  GenServer should wait for a response before crashing (overriding the default value 
-  set in `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if 
-  the `:client_timeout` is shorter than the `:message_timeout` value, the call will 
-  return an error but the server will not crash even if the response message is 
-  never returned from the Clojure peer.
+  string which is then passed to the Datomic `transact` API function. 
   
-  ## Example
+  The first parameter to this function is the pid or alias of the GenServer process;  
+  the second is the transaction data. 
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `DatomicGenServer.start` or 
+  `DatomicGenServer.start_link`). Note that if the `:client_timeout` is shorter 
+  than the `:message_timeout` value, the call will return an error but the server 
+  will not crash even if the response message is never returned from the Clojure peer.
+  
+## Example
   
       data_to_add = [%{ 
           Db.id => Db.dbid(Db.schema_partition),
@@ -148,7 +250,7 @@ defmodule DatomicGenServer.Db do
                 %DatomicGenServer.Db.Datom{a: 40, added: true, e: 65, tx: 13194139534314, v: 23},
                 %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534314, v: 65}],
               tempids: %{-9223367638809264706 => 65}}}
-  
+
   """
   @spec transact(GenServer.server, [Exdn.exdn], [DatomicGenServer.send_option]) :: {:ok, DatomicTransaction.t} | {:error, term}
   def transact(server_identifier, exdn, options \\ []) do
@@ -166,29 +268,32 @@ defmodule DatomicGenServer.Db do
   end
   
   @doc """
-  Issues an `entity` call to that is passed to the Datomic `entity` 
-  API function. The first parameter to this function is the pid or alias of the
-  GenServer process, the second is an edn string representing the parameter that
-  is to be passed to `entity`: either an entity id, an ident, or a lookup ref.
-  The third parameter is a list of atoms that represent the keys of the attributes 
-  you wish to fetch, or `:all` if you want all the entity's attributes. The options 
-  keyword list may include a `:client_timeout` option that specifies the milliseconds 
-  timeout passed to GenServer.call, and a `:message_timeout` option that specifies 
-  how long the GenServer should wait for a response before crashing (overriding 
-  the default value set in `start` or `start_link`). Note that if the `:client_timeout` 
-  is shorter than the `:message_timeout` value, the call will return an error but 
-  the server will not crash even if the message is never returned from the Clojure peer.
+  Issues an `entity` call to that is passed to the Datomic `entity` API function. 
   
-  ## Example
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is an edn string representing the parameter that is to be passed to 
+  `entity`: either an entity id, an ident, or a lookup ref. The third parameter 
+  is a list of atoms that represent the keys of the attributes you wish to fetch, 
+  or `:all` if you want all the entity's attributes. 
   
-    Db.entity(DatomicGenServer, :"person/email")
-    
-    # => {ok, %{ Db.ident => :"person/email", 
-                 Db.value_type => Db.type_string, 
-                 Db.cardinality => Db.cardinality_one, 
-                 Db.doc => "A person's email"}}
-  """
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      Db.entity(DatomicGenServer, :"person/email")
+      
+      # => {ok, %{ Db.ident => :"person/email", 
+                   Db.value_type => Db.type_string, 
+                   Db.cardinality => Db.cardinality_one, 
+                   Db.doc => "A person's email"}}
 
+  """
   @spec entity(GenServer.server, [Exdn.exdn], [atom] | :all, [query_option]) :: {:ok, term} | {:error, term}
   def entity(server_identifier, exdn, attr_names \\ :all, options \\ []) do
     case Exdn.from_elixir(exdn) do
@@ -377,8 +482,10 @@ defmodule DatomicGenServer.Db do
   # Query placeholders
   @doc """
   Convenience function to generate Datomic query placeholders--i.e., 
-  symbols prefixed by a question mark. Accepts an atom as its argument, 
-  representing the symbol to which the question mark is to be prepended.
+  symbols prefixed by a question mark. 
+  
+  Accepts an atom as its argument, representing the symbol to which 
+  the question mark is to be prepended.
   """  
   @spec q?(atom) :: {:symbol, atom }
   def q?(placeholder_atom) do
@@ -394,8 +501,10 @@ defmodule DatomicGenServer.Db do
   
   @doc """
   Convenience function to generate Datomic data source specifications--i.e., 
-  symbols prefixed by a dollar sign. Accepts an atom as its argument, 
-  representing the symbol to which the dollar sign is to be prepended.
+  symbols prefixed by a dollar sign. 
+  
+  Accepts an atom as its argument, representing the symbol to which the dollar 
+  sign is to be prepended.
   """  
   @spec inS(atom) :: {:symbol, atom }
   def inS(placeholder_atom) do
@@ -407,21 +516,24 @@ defmodule DatomicGenServer.Db do
   # Bindings and find specifications
   @doc """
   Convenience shortcut for the single scalar find specification `.`
-  as used, for example, in `[:find ?e . :where [?e age 42] ]`
+  as used, for example, in: `[:find ?e . :where [?e age 42] ]`
+
   """
   @spec single_scalar :: {:symbol, :"."}
   def single_scalar, do: {:symbol, :"."}
 
   @doc """
-  Convenience shortcut for the blank binding `_`
-  as used, for example, in `[:find ?x :where [_ :likes ?x]]`
+  Convenience shortcut for the blank binding `_` as used, for example, in: 
+  `[:find ?x :where [_ :likes ?x]]`
+
   """
   @spec blank_binding :: {:symbol, :"_"}
   def blank_binding, do: {:symbol, :"_"}
 
   @doc """
   Convenience shortcut for collection binding find specification `...`
-  as used, for example, in `[:find ?e in $ [?a ...] :where [?e age ?a] ]`
+  as used, for example, in: `[:find ?e in $ [?a ...] :where [?e age ?a] ]`
+
   """
   @spec collection_binding(atom) :: [{:symbol, atom},...]
   def collection_binding(placeholder_atom) do
@@ -430,38 +542,44 @@ defmodule DatomicGenServer.Db do
 
   # Clauses
   @doc """
-  Convenience shortcut for creating a `not` clause; e.g.
-  
-    (not [?eid :person/age 13])`
-    
-  would be represented as 
-  
-    `Db._not([Db.q?(:eid), :"person/age" 13])`
+  Convenience shortcut for creating a `not` clause.
   
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   allows us not to have to sprinkle that syntax all over the place.
+
+## Example
+
+      Db._not([Db.q?(:eid), :"person/age" 13])
+      
+  sends the following to Datomic:
+
+      (not [?eid :person/age 13])
+
   """  
   @spec _not([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _not(inner_clause), do: datomic_expression(:not, [inner_clause])
 
   @doc """
-  Convenience shortcut for creating a `not-join` clause; e.g.
-
-    (not-join [?employer]
-           [?employer :business/employee ?person]
-           [?employer :business/nonprofit true])
-
-   Using the `not_join_clause` function, this would be represented as:
-   
-     Db._not_join(
-       [ Db.q?(:employer) ],
-       [ [Db.q?(:employer), :"business/employee" Db.q?(:person)],
-         [Db.q?(:employer), :"business/nonprofit" true]
-       ]
-     )
+  Convenience shortcut for creating a `not-join` clause.
 
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.
+  
+## Example
+
+      Db._not_join(
+        [ Db.q?(:employer) ],
+        [ [Db.q?(:employer), :"business/employee" Db.q?(:person)],
+          [Db.q?(:employer), :"business/nonprofit" true]
+        ]
+      )
+      
+  sends the following to Datomic:
+
+      (not-join [?employer]
+             [?employer :business/employee ?person]
+             [?employer :business/nonprofit true])
+
   """  
   @spec _not_join([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _not_join(binding_list, inner_clause_list) do
@@ -470,69 +588,80 @@ defmodule DatomicGenServer.Db do
   end
 
   @doc """
-  Convenience shortcut for creating an `or` clause; e.g.
+  Convenience shortcut for creating an `or` clause.
   
-    (or [?org :business/nonprofit true]
-        [?org :organization/ngo true])
-        
-  Using the `or_clause` function, this would be represented as:
-  
-    Db._or([
-        [Db.q?(:org), :"business/nonprofit" true],
-        [Db.q?(:org), :"organization/ngo" true]
-    ])
-
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.
+    
+## Example
+
+      Db._or([
+          [Db.q?(:org), :"business/nonprofit" true],
+          [Db.q?(:org), :"organization/ngo" true]
+      ])
+      
+  sends the following to Datomic:
+          
+      (or [?org :business/nonprofit true]
+          [?org :organization/ngo true])
+
   """  
   @spec _or([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _or(inner_clauses), do: datomic_expression(:or, inner_clauses)
 
   @doc """
-  Convenience shortcut for creating an `and` clause; e.g.
-  
-    (and [?org :organization/ngo true]
-         [?org :organization/country :country/france])
-
-  Using the `and_clause` function, this would be represented as:
-  
-    Db._and([
-        [Db.q?(:org), :"organization/ngo" true],
-        [Db.q?(:org), :"organization/country" :"country/france"]
-    ])
-
-  In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
-  function allows us not to have to sprinkle that syntax all over the place.
+  Convenience shortcut for creating an `and` clause.
   
   Note that in Datomic, `and` clauses are only for use inside `or` clauses; `and` 
   is the default otherwise.
+
+  In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
+  function allows us not to have to sprinkle that syntax all over the place.
+
+## Example
+
+      Db._and([
+          [Db.q?(:org), :"organization/ngo" true],
+          [Db.q?(:org), :"organization/country" :"country/france"]
+      ])
+
+  sends the following to Datomic:
+    
+      (and [?org :organization/ngo true]
+           [?org :organization/country :country/france])
+
   """
   @spec _and([Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _and(inner_clauses), do: datomic_expression(:and, inner_clauses)
 
   @doc """
-  Convenience shortcut for creating an `or-join` clause; e.g.
+  Convenience shortcut for creating an `or-join` clause.
   
-    (or-join [?person]
-           (and [?employer :business/employee ?person]
-                [?employer :business/nonprofit true]))
-           [?person :person/age 65])
-
   The first parameter to this function should be a list of bindings; the second
-  the list of clauses. So the above would be represented as:
-  
-    Db._or_join(
-      [ Db.q?(:person) ],
-      [ Db.and_clause([
-          [Db.q?(:employer), :"business/employee" Db.q?(:person)],
-          [Db.q?(:employer), :"business/nonprofit" true]
-        ]),
-        [Db.q?(:person), :"person/age" 65]
-      ]
-    )
-  
+  the list of clauses.
+    
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.
+  
+## Example
+
+      Db._or_join(
+        [ Db.q?(:person) ],
+        [ Db._and([
+            [Db.q?(:employer), :"business/employee" Db.q?(:person)],
+            [Db.q?(:employer), :"business/nonprofit" true]
+          ]),
+          [Db.q?(:person), :"person/age" 65]
+        ]
+      )
+      
+  sends the following to Datomic:
+          
+      (or-join [?person]
+             (and [?employer :business/employee ?person]
+                  [?employer :business/nonprofit true]))
+             [?person :person/age 65])
+
   """
   @spec _or_join([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _or_join(binding_list, inner_clause_list) do
@@ -541,12 +670,19 @@ defmodule DatomicGenServer.Db do
   end
 
   @doc """
-  Convenience shortcut for creating a Datomic pull expression; e.g. 
-  `(pull ?e [:person/address])` would be represented as 
-  `Db._pull(Db.q?(:e), [:"person/address"])`.
-
+  Convenience shortcut for creating a Datomic pull expression.
+  
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.
+  
+## Example
+
+      Db._pull(Db.q?(:e), [:"person/address"])
+      
+  sends the following to Datomic:
+          
+      (pull ?e [:person/address])
+
   """
   @spec _pull({:symbol, atom}, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _pull({:symbol, entity_var}, pattern_clauses) do
@@ -554,10 +690,12 @@ defmodule DatomicGenServer.Db do
   end
 
   @doc """
-  Convenience shortcut for creating a Datomic expression clause. An expression 
-  clause allows arbitrary Java or Clojure functions to be used inside of Datalog 
-  queries; they are either of form `[(predicate ...)]` or `[(function ...) bindings]`.
-  An expression clause is thus a Clojure list inside a vector.
+  Convenience shortcut for creating a Datomic expression clause. 
+  
+  An expression clause allows arbitrary Java or Clojure functions to be used 
+  inside of Datalog queries; they are either of form `[(predicate ...)]` or 
+  `[(function ...) bindings]`. An expression clause is thus a Clojure list inside 
+  a vector.
 
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.

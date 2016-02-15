@@ -72,19 +72,19 @@
 <p>  The interface functions in this module communicate with Datomic using edn
   strings. To use Elixir data structures, see the accompanying <code class="inline">DatomicGenServer.db</code>
   module.</p>
-<p>  ## Examples</p>
+<h2>Examples</h2>
 <pre><code class="elixir">DatomicGenServer.start(
   &quot;datomic:mem://test&quot;, 
   true, 
   [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
 )
 
-query = &quot;[:find ?c :where [?c :db/doc &quot;Some docstring that isn&#39;t in the database&quot;]]&quot;
+query = &quot;[:find ?c :where [?c :db/doc \&quot;Some docstring that isn&#39;t in the database\&quot;]]&quot;
 DatomicGenServer.q(DatomicGenServer, query)
 
-=&gt; {:ok, &quot;#{}</code></pre>
-<p>“}</p>
-<pre><code class="elixir">data_to_add = &quot;&quot;&quot;
+# =&gt; {:ok, &quot;#{}\n&quot;}
+
+data_to_add = &quot;&quot;&quot;
   [ { :db/id #db/id[:db.part/db]
       :db/ident :person/name
       :db/valueType :db.type/string
@@ -95,13 +95,13 @@ DatomicGenServer.q(DatomicGenServer, query)
 
 DatomicGenServer.transact(DatomicGenServer, data_to_add)
 
-=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
-          :tx-data [{:a 50, :e 13194139534313, :v #inst \&quot;2016-02-14T02:10:54.580-00:00\&quot;, 
-          :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
-          :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
-          :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
-          :v \&quot;A person&#39;s name\&quot;, :tx 13194139534313, :added true} {:a 13, 
-          :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}&quot;}</code></pre>
+# =&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+              :tx-data [{:a 50, :e 13194139534313, :v #inst \&quot;2016-02-14T02:10:54.580-00:00\&quot;, 
+              :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+              :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+              :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+              :v \&quot;A person&#39;s name\&quot;, :tx 13194139534313, :added true} {:a 13, 
+              :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}&quot;}</code></pre>
 
         </section>
       
@@ -164,68 +164,7 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
   </div>
   
     <div class="summary-synopsis"><p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is an edn string representing the parameter that
-is to be passed to <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref.
-The third parameter is a list of atoms that represent the keys of the attributes 
-you wish to fetch, or <code class="inline">:all</code> if you want all the entity’s attributes. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the message is never returned from the Clojure peer</p>
-</div>
-  
-</div>
-<div class="summary-row">
-  <div class="summary-signature">
-    <a href="#handle_call/3">handle_call(msg, arg2, state)</a>
-  </div>
-  
-    <div class="summary-synopsis"><p>Implements the GenServer <code class="inline">handle_call</code> callback to handle client messages. This
-function sends a message to the Clojure peer that is run on a port, and waits 
-for a response from the peer with the same message ID. Messages that are returned
-from the port with different message IDs (for example, responses to earlier
-requests that timed out) are discarded</p>
-</div>
-  
-</div>
-<div class="summary-row">
-  <div class="summary-signature">
-    <a href="#handle_cast/2">handle_cast(msg, state)</a>
-  </div>
-  
-    <div class="summary-synopsis"><p>Implements the GenServer <code class="inline">handle_cast</code> callback to handle client messages. This
-function sends a message to the Clojure peer that is run on a port, but does
-not wait for the result. Responses from the peer will be discarded either in 
-the <code class="inline">wait_for_reply</code> loop called by <code class="inline">handle_call</code>, or in the <code class="inline">handle_info</code> 
-do-nothing catch-all function</p>
-</div>
-  
-</div>
-<div class="summary-row">
-  <div class="summary-signature">
-    <a href="#handle_info/2">handle_info(arg1, state)</a>
-  </div>
-  
-    <div class="summary-synopsis"><p>Do-nothing implementation of the GenServer <code class="inline">handle_info</code> callback as a 
-catch-all case</p>
-</div>
-  
-</div>
-<div class="summary-row">
-  <div class="summary-signature">
-    <a href="#init/1">init(args)</a>
-  </div>
-  
-    <div class="summary-synopsis"><p>Implements the GenServer <code class="inline">init</code> callback. On start, the server sends itself an 
-initial message to start the JVM, then registers itself under any alias provided. 
-Any messages sent to the server by clients at startup will arrive after the 
-initialization message, and will need to wait until the JVM starts and initialization 
-is complete. Thus, it is important that the timeouts on messages sent to the 
-server exceed the startup timeout value, at least for the messages sent during 
-the startup phase</p>
+API function</p>
 </div>
   
 </div>
@@ -235,15 +174,7 @@ the startup phase</p>
   </div>
   
     <div class="summary-synopsis"><p>Queries a DatomicGenServer using a query formulated as an edn string.
-This query is passed to the Datomic <code class="inline">q</code> API function. The first parameter to
-this function is the pid or alias of the GenServer process, the second is the 
-query. The options keyword list may include a <code class="inline">:client_timeout</code> option
-that specifies the milliseconds timeout passed to GenServer.call, and a 
-<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait
-for a response before crashing (overriding the default value set in <code class="inline">start</code> or
-<code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> is shorter than the 
-<code class="inline">:message_timeout</code> value, the call will return an error but the server will
-not crash even if the response message is never returned from the Clojure peer</p>
+This query is passed to the Datomic <code class="inline">q</code> API function</p>
 </div>
   
 </div>
@@ -252,15 +183,7 @@ not crash even if the response message is never returned from the Clojure peer</
     <a href="#start/3">start(db_uri, create? \\ false, options \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Starts the GenServer. This function is basically a pass-through to
-<code class="inline">GenServer.start</code>, but with some additional parameters: The first is the URL 
-of the Datomic transactor to which to connect, and the second a boolean parameter 
-indicating whether or not to create the database if it does not yet exist. The
-options keyword list may include the normal options accepted by <code class="inline">GenServer.start</code>, 
-as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
-milliseconds that the server will wait for a message before crashing. Note that
-if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
-is exceeded</p>
+    <div class="summary-synopsis"><p>Starts the GenServer</p>
 </div>
   
 </div>
@@ -269,15 +192,7 @@ is exceeded</p>
     <a href="#start_link/3">start_link(db_uri, create? \\ false, options \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Starts the GenServer. This function is basically a pass-through to
-<code class="inline">GenServer.start</code>, but with some additional parameters: The first is the URL 
-of the Datomic transactor to which to connect, and the second a boolean parameter 
-indicating whether or not to create the database if it does not yet exist. The
-options keyword list may include the normal options accepted by <code class="inline">GenServer.start_link</code>, 
-as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
-milliseconds that the server will wait for a message before crashing. Note that
-if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
-is exceeded</p>
+    <div class="summary-synopsis"><p>Starts the GenServer in a linked process</p>
 </div>
   
 </div>
@@ -288,15 +203,7 @@ is exceeded</p>
   
     <div class="summary-synopsis"><p>Issues a transaction against a DatomicGenServer using a transaction 
 formulated as an edn string. This transaction is passed to the Datomic <code class="inline">transact</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is the transaction data in edn format. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the response message is never returned from 
-the Clojure peer</p>
+API function</p>
 </div>
   
 </div>
@@ -380,130 +287,23 @@ the Clojure peer</p>
   
   <section class="docstring">
     <p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is an edn string representing the parameter that
-is to be passed to <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref.
-The third parameter is a list of atoms that represent the keys of the attributes 
-you wish to fetch, or <code class="inline">:all</code> if you want all the entity’s attributes. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the message is never returned from the Clojure peer.</p>
+API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is an edn string representing the parameter that is to be passed to 
+<code class="inline">entity</code>: either an entity id, an ident, or a lookup ref. The third parameter 
+is a list of atoms that represent the keys of the attributes you wish to fetch, 
+or <code class="inline">:all</code> if you want all the entity’s attributes. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
 <h2>Example</h2>
-<p>  DatomicGenServer.entity(DatomicGenServer, “:person/email”, [:"db/valueType", :"db/doc"])</p>
-<p>  =&gt; “{:db/valueType :db.type/string, :db/doc “A person’s email”}
-“</p>
+<pre><code class="elixir">DatomicGenServer.entity(DatomicGenServer, &quot;:person/email&quot;, [:&quot;db/valueType&quot;, :&quot;db/doc&quot;])
 
-  </section>
-</div>
-<div class="detail" id="handle_call/3">
-  <div class="detail-header">
-    <a href="#handle_call/3" class="detail-link" title="Link to this function">
-      <i class="icon-link"></i>
-    </a>
-    <span class="signature">handle_call(msg, arg2, state)</span>
-      
-  </div>
-  
-    <div class="specs">
-      <h4 class="specs-title">Specs</h4>
-      <div class="specs-list">
-        
-          <pre><code class="elixir">handle_call(<a href="#t:datomic_call/0">datomic_call</a>, term, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>) :: {:reply, <a href="#t:datomic_result/0">datomic_result</a>, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>}</code></pre>
-        
-      </div>
-    </div>
-  
-  <section class="docstring">
-    <p>Implements the GenServer <code class="inline">handle_call</code> callback to handle client messages. This
-function sends a message to the Clojure peer that is run on a port, and waits 
-for a response from the peer with the same message ID. Messages that are returned
-from the port with different message IDs (for example, responses to earlier
-requests that timed out) are discarded. </p>
-
-  </section>
-</div>
-<div class="detail" id="handle_cast/2">
-  <div class="detail-header">
-    <a href="#handle_cast/2" class="detail-link" title="Link to this function">
-      <i class="icon-link"></i>
-    </a>
-    <span class="signature">handle_cast(msg, state)</span>
-      
-  </div>
-  
-    <div class="specs">
-      <h4 class="specs-title">Specs</h4>
-      <div class="specs-list">
-        
-          <pre><code class="elixir">handle_cast(<a href="#t:datomic_message/0">datomic_message</a>, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>) :: {:noreply, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>}</code></pre>
-        
-      </div>
-    </div>
-  
-  <section class="docstring">
-    <p>Implements the GenServer <code class="inline">handle_cast</code> callback to handle client messages. This
-function sends a message to the Clojure peer that is run on a port, but does
-not wait for the result. Responses from the peer will be discarded either in 
-the <code class="inline">wait_for_reply</code> loop called by <code class="inline">handle_call</code>, or in the <code class="inline">handle_info</code> 
-do-nothing catch-all function.</p>
-
-  </section>
-</div>
-<div class="detail" id="handle_info/2">
-  <div class="detail-header">
-    <a href="#handle_info/2" class="detail-link" title="Link to this function">
-      <i class="icon-link"></i>
-    </a>
-    <span class="signature">handle_info(arg1, state)</span>
-      
-  </div>
-  
-    <div class="specs">
-      <h4 class="specs-title">Specs</h4>
-      <div class="specs-list">
-        
-          <pre><code class="elixir">handle_info({:EXIT, port, term}, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>) :: no_return</code></pre>
-        
-          <pre><code class="elixir">handle_info({:initialize_jvm, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, boolean, non_neg_integer}, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>) :: {:noreply, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>}</code></pre>
-        
-      </div>
-    </div>
-  
-  <section class="docstring">
-    <p>Do-nothing implementation of the GenServer <code class="inline">handle_info</code> callback as a 
-catch-all case. </p>
-
-  </section>
-</div>
-<div class="detail" id="init/1">
-  <div class="detail-header">
-    <a href="#init/1" class="detail-link" title="Link to this function">
-      <i class="icon-link"></i>
-    </a>
-    <span class="signature">init(args)</span>
-      
-  </div>
-  
-    <div class="specs">
-      <h4 class="specs-title">Specs</h4>
-      <div class="specs-list">
-        
-          <pre><code class="elixir">init({<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, boolean, <a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:name/0">GenServer.name</a> | nil, non_neg_integer, non_neg_integer}) :: {:ok, <a href="DatomicGenServer.ProcessState.html#t:t/0">DatomicGenServer.ProcessState.t</a>}</code></pre>
-        
-      </div>
-    </div>
-  
-  <section class="docstring">
-    <p>Implements the GenServer <code class="inline">init</code> callback. On start, the server sends itself an 
-initial message to start the JVM, then registers itself under any alias provided. 
-Any messages sent to the server by clients at startup will arrive after the 
-initialization message, and will need to wait until the JVM starts and initialization 
-is complete. Thus, it is important that the timeouts on messages sent to the 
-server exceed the startup timeout value, at least for the messages sent during 
-the startup phase.</p>
+=&gt; &quot;{:db/valueType :db.type/string, :db/doc \&quot;A person&#39;s email\&quot;}\n&quot;</code></pre>
 
   </section>
 </div>
@@ -527,20 +327,20 @@ the startup phase.</p>
   
   <section class="docstring">
     <p>Queries a DatomicGenServer using a query formulated as an edn string.
-This query is passed to the Datomic <code class="inline">q</code> API function. The first parameter to
-this function is the pid or alias of the GenServer process, the second is the 
-query. The options keyword list may include a <code class="inline">:client_timeout</code> option
-that specifies the milliseconds timeout passed to GenServer.call, and a 
+This query is passed to the Datomic <code class="inline">q</code> API function.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process;
+the second is the query. The options keyword list may include a <code class="inline">:client_timeout</code> 
+option that specifies the milliseconds timeout passed to GenServer.call, and a 
 <code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait
 for a response before crashing (overriding the default value set in <code class="inline">start</code> or
 <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> is shorter than the 
 <code class="inline">:message_timeout</code> value, the call will return an error but the server will
 not crash even if the response message is never returned from the Clojure peer.</p>
 <h2>Example</h2>
-<p>  query = “[:find ?c :where [?c :db/doc "Some docstring that isn't in the database"]]“
-  DatomicGenServer.q(DatomicGenServer, query)</p>
-<p>  =&gt; {:ok, “#{}
-“}</p>
+<pre><code class="elixir">query = &quot;[:find ?c :where [?c :db/doc \&quot;Some docstring that isn&#39;t in the database\&quot;]]&quot;
+DatomicGenServer.q(DatomicGenServer, query)
+
+=&gt; {:ok, &quot;#{}\n&quot;}</code></pre>
 
   </section>
 </div>
@@ -563,21 +363,22 @@ not crash even if the response message is never returned from the Clojure peer.<
     </div>
   
   <section class="docstring">
-    <p>Starts the GenServer. This function is basically a pass-through to
-<code class="inline">GenServer.start</code>, but with some additional parameters: The first is the URL 
-of the Datomic transactor to which to connect, and the second a boolean parameter 
-indicating whether or not to create the database if it does not yet exist. The
-options keyword list may include the normal options accepted by <code class="inline">GenServer.start</code>, 
+    <p>Starts the GenServer. </p>
+<p>This function is basically a pass-through to <code class="inline">GenServer.start</code>, but with some 
+additional parameters: The first is the URL of the Datomic transactor to which 
+to connect, and the second a boolean parameter indicating whether or not to 
+create the database if it does not yet exist. </p>
+<p>The options keyword list may include the normal options accepted by <code class="inline">GenServer.start</code>, 
 as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
 milliseconds that the server will wait for a message before crashing. Note that
 if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
 is exceeded.</p>
 <h2>Example</h2>
-<p>  DatomicGenServer.start(</p>
-<pre><code class="elixir">&quot;datomic:mem://test&quot;, 
-true, 
-[{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]</code></pre>
-<p>  )</p>
+<pre><code class="elixir">DatomicGenServer.start(
+  &quot;datomic:mem://test&quot;, 
+  true, 
+  [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+)</code></pre>
 
   </section>
 </div>
@@ -600,21 +401,22 @@ true,
     </div>
   
   <section class="docstring">
-    <p>Starts the GenServer. This function is basically a pass-through to
-<code class="inline">GenServer.start</code>, but with some additional parameters: The first is the URL 
-of the Datomic transactor to which to connect, and the second a boolean parameter 
-indicating whether or not to create the database if it does not yet exist. The
-options keyword list may include the normal options accepted by <code class="inline">GenServer.start_link</code>, 
+    <p>Starts the GenServer in a linked process. </p>
+<p>This function is basically a pass-through to <code class="inline">GenServer.start_link</code>, but with 
+some additional parameters: The first is the URL of the Datomic transactor to 
+which to connect, and the second a boolean parameter indicating whether or not 
+to create the database if it does not yet exist. </p>
+<p>The options keyword list may include the normal options accepted by <code class="inline">GenServer.start_link</code>, 
 as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
 milliseconds that the server will wait for a message before crashing. Note that
 if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
 is exceeded.</p>
 <h2>Example</h2>
-<p>  DatomicGenServer.start_link(</p>
-<pre><code class="elixir">&quot;datomic:mem://test&quot;, 
-true, 
-[{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]</code></pre>
-<p>  )</p>
+<pre><code class="elixir">DatomicGenServer.start_link(
+  &quot;datomic:mem://test&quot;, 
+  true, 
+  [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+)</code></pre>
 
   </section>
 </div>
@@ -639,32 +441,35 @@ true,
   <section class="docstring">
     <p>Issues a transaction against a DatomicGenServer using a transaction 
 formulated as an edn string. This transaction is passed to the Datomic <code class="inline">transact</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is the transaction data in edn format. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
+API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the transaction data in edn format. The options keyword list may 
+include a <code class="inline">:client_timeout</code> option that specifies the milliseconds timeout passed 
+to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how long the 
+GenServer should wait for a response before crashing (overriding the default 
+value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> is 
+shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
 the server will not crash even if the response message is never returned from 
 the Clojure peer.</p>
 <h2>Example</h2>
-<p>  data_to_add = “””</p>
-<pre><code class="elixir">[ { :db/id #db/id[:db.part/db]
-    :db/ident :person/name
-    :db/valueType :db.type/string
-    :db/cardinality :db.cardinality/one
-    :db/doc \&quot;A person&#39;s name\&quot;
-    :db.install/_attribute :db.part/db}]</code></pre>
-<p>  “””</p>
-<p>  DatomicGenServer.transact(DatomicGenServer, data_to_add)</p>
-<p>  =&gt; {:ok, “{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, </p>
-<pre><code class="elixir">        :tx-data [{:a 50, :e 13194139534313, :v #inst \&quot;2016-02-14T02:10:54.580-00:00\&quot;, 
-        :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
-        :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
-        :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
-        :v \&quot;A person&#39;s name\&quot;, :tx 13194139534313, :added true} {:a 13, 
-        :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}&quot;}</code></pre>
+<pre><code class="elixir">data_to_add = &quot;&quot;&quot;
+  [ { :db/id #db/id[:db.part/db]
+      :db/ident :person/name
+      :db/valueType :db.type/string
+      :db/cardinality :db.cardinality/one
+      :db/doc \&quot;A person&#39;s name\&quot;
+      :db.install/_attribute :db.part/db}]
+&quot;&quot;&quot;
+
+DatomicGenServer.transact(DatomicGenServer, data_to_add)
+
+=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, 
+          :tx-data [{:a 50, :e 13194139534313, :v #inst \&quot;2016-02-14T02:10:54.580-00:00\&quot;, 
+          :tx 13194139534313, :added true} {:a 10, :e 64, :v :person/name, :tx 13194139534313, 
+          :added true} {:a 40, :e 64, :v 23, :tx 13194139534313, :added true} {:a 41, 
+          :e 64, :v 35, :tx 13194139534313, :added true} {:a 62, :e 64, 
+          :v \&quot;A person&#39;s name\&quot;, :tx 13194139534313, :added true} {:a 13, 
+          :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}&quot;}</code></pre>
 
   </section>
 </div>

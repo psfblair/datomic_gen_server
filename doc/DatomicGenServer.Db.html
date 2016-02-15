@@ -73,38 +73,112 @@
   and return Elixir data structures, and also provides slightly more syntactically
   pleasant equivalents for Datomic keys and structures that would otherwise
   need to be represented using a lot of punctuation that isn’t required in Clojure.</p>
-<p>  ## Examples</p>
-<p>  DatomicGenServer.start(</p>
-<pre><code class="elixir">&quot;datomic:mem://test&quot;, 
-true, 
-[{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]</code></pre>
-<p>  )</p>
-<p>  data_to_add = [%{ </p>
-<pre><code class="elixir">  Db.id =&gt; Db.dbid(Db.schema_partition),
-  Db.ident =&gt; :&quot;person/name&quot;,
-  Db.value_type =&gt; Db.type_string,
-  Db.cardinality =&gt; Db.cardinality_one,
-  Db.doc =&gt; &quot;A person&#39;s name&quot;,
-  Db.install_attribute =&gt; Db.schema_partition</code></pre>
-<p>  }]
-  Db.transact(DatomicGenServer, data_to_add)</p>
-<p>  # =&gt; {:ok, %DatomicGenServer.Db.DatomicTransaction{</p>
-<pre><code class="elixir">      basis_t_before: 1001,   
-      basis_t_after: 1002, 
-      retracted_datoms: [],
-      added_datoms: [
-        %DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534314, tx: 13194139534314, 
-            v: %Calendar.DateTime{abbr: &quot;UTC&quot;, day: 15, hour: 3, min: 20, month: 2, sec: 1, std_off: 0, 
-                                  timezone: &quot;Etc/UTC&quot;, usec: 746000, utc_off: 0, year: 2016}},
-        %DatomicGenServer.Db.Datom{a: 41, added: true, e: 65, tx: 13194139534314, v: 35},
-        %DatomicGenServer.Db.Datom{a: 62, added: true, e: 65, tx: 13194139534314, v: &quot;A person&#39;s name&quot;},
-        %DatomicGenServer.Db.Datom{a: 10, added: true, e: 65, tx: 13194139534314, v: :&quot;person/name&quot;},
-        %DatomicGenServer.Db.Datom{a: 40, added: true, e: 65, tx: 13194139534314, v: 23},
-        %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534314, v: 65}],
-      tempids: %{-9223367638809264706 =&gt; 65}}}</code></pre>
-<p>  query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
-  Db.q(DatomicGenServer, query)</p>
-<p>  #=&gt; {:ok, #MapSet&lt;['A']&gt;}  # ASCII representation of ID 65</p>
+<p>  The hexdoc organizes the functions in this module alphabetically; here is a 
+  list by topic:</p>
+<h2>Interface functions</h2>
+<pre><code class="elixir">q(server_identifier, exdn, options \ [])
+transact(server_identifier, exdn, options \ [])
+entity(server_identifier, exdn, attr_names \ :all, options \ [])</code></pre>
+<h2>Datomic Shortcuts</h2>
+<h3>Id/ident</h3>
+<pre><code class="elixir">dbid(db_part)
+id
+ident</code></pre>
+<h3>Transaction creation</h3>
+<pre><code class="elixir">add
+retract
+install_attribute
+alter_attribute
+tx_instant</code></pre>
+<h3>Value types</h3>
+<pre><code class="elixir">value_type
+type_long
+type_keyword
+type_string
+type_boolean
+type_bigint
+type_float
+type_double
+type_bigdec
+type_ref
+type_instant
+type_uuid
+type_uri
+type_bytes</code></pre>
+<h3>Cardinalities</h3>
+<pre><code class="elixir">cardinality
+cardinality_one
+cardinality_many</code></pre>
+<h3>Optional Schema Attributes</h3>
+<pre><code class="elixir">doc
+unique
+unique_value
+unique_identity
+index
+fulltext
+is_component
+no_history</code></pre>
+<h3>Functions</h3>
+<pre><code class="elixir">_fn
+fn_retract_entity
+fn_cas</code></pre>
+<h3>Common partions</h3>
+<pre><code class="elixir">schema_partition
+transaction_partition
+user_partition</code></pre>
+<h3>Query placeholders</h3>
+<pre><code class="elixir">q?(atom)</code></pre>
+<h3>Data sources</h3>
+<pre><code class="elixir">implicit
+inS(placeholder_atom)</code></pre>
+<h3>Bindings and find specifications</h3>
+<pre><code class="elixir">single_scalar
+blank_binding
+collection_binding(placeholder_atom)</code></pre>
+<h3>Clauses</h3>
+<pre><code class="elixir">_not(inner_clause)
+_not_join(binding_list, inner_clause_list)
+_or(inner_clauses)
+_or_join(binding_list, inner_clause_list)
+_and(inner_clauses)
+_pull({:symbol, entity_var}, pattern_clauses)
+_expr(function_symbol, remaining_expressions, bindings)</code></pre>
+<h2>Examples</h2>
+<pre><code class="elixir">DatomicGenServer.start(
+  &quot;datomic:mem://test&quot;, 
+  true, 
+  [{:timeout, 20_000}, {:default_message_timeout, 20_000}, {:name, DatomicGenServer}]
+)
+
+data_to_add = [%{ 
+    Db.id =&gt; Db.dbid(Db.schema_partition),
+    Db.ident =&gt; :&quot;person/name&quot;,
+    Db.value_type =&gt; Db.type_string,
+    Db.cardinality =&gt; Db.cardinality_one,
+    Db.doc =&gt; &quot;A person&#39;s name&quot;,
+    Db.install_attribute =&gt; Db.schema_partition
+}]
+Db.transact(DatomicGenServer, data_to_add)
+
+# =&gt; {:ok, %DatomicGenServer.Db.DatomicTransaction{
+        basis_t_before: 1001,   
+        basis_t_after: 1002, 
+        retracted_datoms: [],
+        added_datoms: [
+          %DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534314, tx: 13194139534314, 
+              v: %Calendar.DateTime{abbr: &quot;UTC&quot;, day: 15, hour: 3, min: 20, month: 2, sec: 1, std_off: 0, 
+                                    timezone: &quot;Etc/UTC&quot;, usec: 746000, utc_off: 0, year: 2016}},
+          %DatomicGenServer.Db.Datom{a: 41, added: true, e: 65, tx: 13194139534314, v: 35},
+          %DatomicGenServer.Db.Datom{a: 62, added: true, e: 65, tx: 13194139534314, v: &quot;A person&#39;s name&quot;},
+          %DatomicGenServer.Db.Datom{a: 10, added: true, e: 65, tx: 13194139534314, v: :&quot;person/name&quot;},
+          %DatomicGenServer.Db.Datom{a: 40, added: true, e: 65, tx: 13194139534314, v: 23},
+          %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534314, v: 65}],
+        tempids: %{-9223367638809264706 =&gt; 65}}}
+
+query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, &quot;A person&#39;s name&quot;]]
+Db.q(DatomicGenServer, query)
+
+#=&gt; {:ok, #MapSet&lt;[&#39;A&#39;]&gt;}  # ASCII representation of ID 65</code></pre>
 
         </section>
       
@@ -154,7 +228,7 @@ true,
     <a href="#_and/1">_and(inner_clauses)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">and</code> clause; e.g</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">and</code> clause</p>
 </div>
   
 </div>
@@ -163,10 +237,7 @@ true,
     <a href="#_expr/3">_expr(function_symbol, remaining_expressions, bindings)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic expression clause. An expression 
-clause allows arbitrary Java or Clojure functions to be used inside of Datalog 
-queries; they are either of form <code class="inline">[(predicate ...)]</code> or <code class="inline">[(function ...) bindings]</code>.
-An expression clause is thus a Clojure list inside a vector</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic expression clause</p>
 </div>
   
 </div>
@@ -184,7 +255,7 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#_not/1">_not(inner_clause)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating a <code class="inline">not</code> clause; e.g</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating a <code class="inline">not</code> clause</p>
 </div>
   
 </div>
@@ -193,7 +264,7 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#_not_join/2">_not_join(binding_list, inner_clause_list)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating a <code class="inline">not-join</code> clause; e.g</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating a <code class="inline">not-join</code> clause</p>
 </div>
   
 </div>
@@ -202,7 +273,7 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#_or/1">_or(inner_clauses)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">or</code> clause; e.g</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">or</code> clause</p>
 </div>
   
 </div>
@@ -211,7 +282,7 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#_or_join/2">_or_join(binding_list, inner_clause_list)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">or-join</code> clause; e.g</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating an <code class="inline">or-join</code> clause</p>
 </div>
   
 </div>
@@ -220,9 +291,7 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#_pull/2">_pull(arg, pattern_clauses)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic pull expression; e.g. 
-<code class="inline">(pull ?e [:person/address])</code> would be represented as 
-<code class="inline">Db._pull(Db.q?(:e), [:&quot;person/address&quot;])</code></p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic pull expression</p>
 </div>
   
 </div>
@@ -249,8 +318,8 @@ An expression clause is thus a Clojure list inside a vector</p>
     <a href="#blank_binding/0">blank_binding()</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for the blank binding <code class="inline">_</code>
-as used, for example, in <code class="inline">[:find ?x :where [_ :likes ?x]]</code></p>
+    <div class="summary-synopsis"><p>Convenience shortcut for the blank binding <code class="inline">_</code> as used, for example, in: 
+<code class="inline">[:find ?x :where [_ :likes ?x]]</code></p>
 </div>
   
 </div>
@@ -287,7 +356,7 @@ as used, for example, in <code class="inline">[:find ?x :where [_ :likes ?x]]</c
   </div>
   
     <div class="summary-synopsis"><p>Convenience shortcut for collection binding find specification <code class="inline">...</code>
-as used, for example, in <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
+as used, for example, in: <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
 </div>
   
 </div>
@@ -314,18 +383,7 @@ as used, for example, in <code class="inline">[:find ?e in $ [?a ...] :where [?e
     <a href="#entity/4">entity(server_identifier, exdn, attr_names \\ :all, options \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is an edn string representing the parameter that
-is to be passed to <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref.
-The third parameter is a list of atoms that represent the keys of the attributes 
-you wish to fetch, or <code class="inline">:all</code> if you want all the entity’s attributes. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the message is never returned from the Clojure peer</p>
+    <div class="summary-synopsis"><p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> API function</p>
 </div>
   
 </div>
@@ -389,8 +447,7 @@ the server will not crash even if the message is never returned from the Clojure
   </div>
   
     <div class="summary-synopsis"><p>Convenience function to generate Datomic data source specifications—i.e., 
-symbols prefixed by a dollar sign. Accepts an atom as its argument, 
-representing the symbol to which the dollar sign is to be prepended</p>
+symbols prefixed by a dollar sign</p>
 </div>
   
 </div>
@@ -437,15 +494,7 @@ representing the symbol to which the dollar sign is to be prepended</p>
   
     <div class="summary-synopsis"><p>Queries a DatomicGenServer using a query formulated as an Elixir list.
 This query is translated to an edn string which is then passed to the Datomic 
-<code class="inline">q</code> API function. The first parameter to this function is the pid or alias of 
-the GenServer process, the second is the query. The options keyword list may 
-include a <code class="inline">:client_timeout</code> option that specifies the milliseconds timeout 
-passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how 
-long the GenServer should wait for a response before crashing (overriding the 
-default value set in <code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>).
-Note that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> 
-value, the call will return an error but the server will not crash even if the 
-response message is never returned from the Clojure peer</p>
+<code class="inline">q</code> API function</p>
 </div>
   
 </div>
@@ -455,8 +504,7 @@ response message is never returned from the Clojure peer</p>
   </div>
   
     <div class="summary-synopsis"><p>Convenience function to generate Datomic query placeholders—i.e., 
-symbols prefixed by a question mark. Accepts an atom as its argument, 
-representing the symbol to which the question mark is to be prepended</p>
+symbols prefixed by a question mark</p>
 </div>
   
 </div>
@@ -484,7 +532,7 @@ representing the symbol to which the question mark is to be prepended</p>
   </div>
   
     <div class="summary-synopsis"><p>Convenience shortcut for the single scalar find specification <code class="inline">.</code>
-as used, for example, in <code class="inline">[:find ?e . :where [?e age 42] ]</code></p>
+as used, for example, in: <code class="inline">[:find ?e . :where [?e age 42] ]</code></p>
 </div>
   
 </div>
@@ -495,16 +543,7 @@ as used, for example, in <code class="inline">[:find ?e . :where [?e age 42] ]</
   
     <div class="summary-synopsis"><p>Issues a transaction against a DatomicGenServer using a transaction 
 formulated as an Elixir list of maps. This transaction is translated to an edn
-string which is then passed to the Datomic <code class="inline">transact</code> API function. The first 
-parameter to this function is the pid or alias of the GenServer process, the 
-second is the transaction data. The options keyword list may include a 
-<code class="inline">:client_timeout</code> option that specifies the milliseconds timeout passed to 
-GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how long the 
-GenServer should wait for a response before crashing (overriding the default value 
-set in <code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if 
-the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
-return an error but the server will not crash even if the response message is 
-never returned from the Clojure peer</p>
+string which is then passed to the Datomic <code class="inline">transact</code> API function</p>
 </div>
   
 </div>
@@ -755,18 +794,19 @@ never returned from the Clojure peer</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating an <code class="inline">and</code> clause; e.g.</p>
-<p>  (and [?org :organization/ngo true]</p>
-<pre><code class="elixir">   [?org :organization/country :country/france])</code></pre>
-<p>Using the <code class="inline">and_clause</code> function, this would be represented as:</p>
-<p>  Db._and([</p>
-<pre><code class="elixir">  [Db.q?(:org), :&quot;organization/ngo&quot; true],
-  [Db.q?(:org), :&quot;organization/country&quot; :&quot;country/france&quot;]</code></pre>
-<p>  ])</p>
-<p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
-function allows us not to have to sprinkle that syntax all over the place.</p>
+    <p>Convenience shortcut for creating an <code class="inline">and</code> clause.</p>
 <p>Note that in Datomic, <code class="inline">and</code> clauses are only for use inside <code class="inline">or</code> clauses; <code class="inline">and</code> 
 is the default otherwise.</p>
+<p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
+function allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._and([
+    [Db.q?(:org), :&quot;organization/ngo&quot; true],
+    [Db.q?(:org), :&quot;organization/country&quot; :&quot;country/france&quot;]
+])</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(and [?org :organization/ngo true]
+     [?org :organization/country :country/france])</code></pre>
 
   </section>
 </div>
@@ -789,10 +829,11 @@ is the default otherwise.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating a Datomic expression clause. An expression 
-clause allows arbitrary Java or Clojure functions to be used inside of Datalog 
-queries; they are either of form <code class="inline">[(predicate ...)]</code> or <code class="inline">[(function ...) bindings]</code>.
-An expression clause is thus a Clojure list inside a vector.</p>
+    <p>Convenience shortcut for creating a Datomic expression clause. </p>
+<p>An expression clause allows arbitrary Java or Clojure functions to be used 
+inside of Datalog queries; they are either of form <code class="inline">[(predicate ...)]</code> or 
+<code class="inline">[(function ...) bindings]</code>. An expression clause is thus a Clojure list inside 
+a vector.</p>
 <p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
 function allows us not to have to sprinkle that syntax all over the place.</p>
 
@@ -840,11 +881,13 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating a <code class="inline">not</code> clause; e.g.</p>
-<p>  (not [?eid :person/age 13])<code class="inline">would be represented as</code>Db._not([Db.q?(:eid), :"person/age" 13])<code class="inline">In Exdn, Clojure lists are represented as tuples with the tag</code>:list`, so this 
-allows us not to have to sprinkle that syntax all over the place.
-
-</p>
+    <p>Convenience shortcut for creating a <code class="inline">not</code> clause.</p>
+<p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
+allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._not([Db.q?(:eid), :&quot;person/age&quot; 13])</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(not [?eid :person/age 13])</code></pre>
 
   </section>
 </div>
@@ -867,19 +910,20 @@ allows us not to have to sprinkle that syntax all over the place.
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating a <code class="inline">not-join</code> clause; e.g.</p>
-<p>  (not-join [?employer]</p>
-<pre><code class="elixir">     [?employer :business/employee ?person]
-     [?employer :business/nonprofit true])</code></pre>
-<p> Using the <code class="inline">not_join_clause</code> function, this would be represented as:</p>
-<p>   Db._not_join(</p>
-<pre><code class="elixir"> [ Db.q?(:employer) ],
- [ [Db.q?(:employer), :&quot;business/employee&quot; Db.q?(:person)],
-   [Db.q?(:employer), :&quot;business/nonprofit&quot; true]
- ]</code></pre>
-<p>   )</p>
+    <p>Convenience shortcut for creating a <code class="inline">not-join</code> clause.</p>
 <p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
 function allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._not_join(
+  [ Db.q?(:employer) ],
+  [ [Db.q?(:employer), :&quot;business/employee&quot; Db.q?(:person)],
+    [Db.q?(:employer), :&quot;business/nonprofit&quot; true]
+  ]
+)</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(not-join [?employer]
+       [?employer :business/employee ?person]
+       [?employer :business/nonprofit true])</code></pre>
 
   </section>
 </div>
@@ -902,16 +946,17 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating an <code class="inline">or</code> clause; e.g.</p>
-<p>  (or [?org :business/nonprofit true]</p>
-<pre><code class="elixir">  [?org :organization/ngo true])</code></pre>
-<p>Using the <code class="inline">or_clause</code> function, this would be represented as:</p>
-<p>  Db._or([</p>
-<pre><code class="elixir">  [Db.q?(:org), :&quot;business/nonprofit&quot; true],
-  [Db.q?(:org), :&quot;organization/ngo&quot; true]</code></pre>
-<p>  ])</p>
+    <p>Convenience shortcut for creating an <code class="inline">or</code> clause.</p>
 <p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
 function allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._or([
+    [Db.q?(:org), :&quot;business/nonprofit&quot; true],
+    [Db.q?(:org), :&quot;organization/ngo&quot; true]
+])</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(or [?org :business/nonprofit true]
+    [?org :organization/ngo true])</code></pre>
 
   </section>
 </div>
@@ -934,24 +979,26 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating an <code class="inline">or-join</code> clause; e.g.</p>
-<p>  (or-join [?person]</p>
-<pre><code class="elixir">     (and [?employer :business/employee ?person]
-          [?employer :business/nonprofit true]))
-     [?person :person/age 65])</code></pre>
+    <p>Convenience shortcut for creating an <code class="inline">or-join</code> clause.</p>
 <p>The first parameter to this function should be a list of bindings; the second
-the list of clauses. So the above would be represented as:</p>
-<p>  Db._or_join(</p>
-<pre><code class="elixir">[ Db.q?(:person) ],
-[ Db.and_clause([
-    [Db.q?(:employer), :&quot;business/employee&quot; Db.q?(:person)],
-    [Db.q?(:employer), :&quot;business/nonprofit&quot; true]
-  ]),
-  [Db.q?(:person), :&quot;person/age&quot; 65]
-]</code></pre>
-<p>  )</p>
+the list of clauses.</p>
 <p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
 function allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._or_join(
+  [ Db.q?(:person) ],
+  [ Db._and([
+      [Db.q?(:employer), :&quot;business/employee&quot; Db.q?(:person)],
+      [Db.q?(:employer), :&quot;business/nonprofit&quot; true]
+    ]),
+    [Db.q?(:person), :&quot;person/age&quot; 65]
+  ]
+)</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(or-join [?person]
+       (and [?employer :business/employee ?person]
+            [?employer :business/nonprofit true]))
+       [?person :person/age 65])</code></pre>
 
   </section>
 </div>
@@ -974,11 +1021,13 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating a Datomic pull expression; e.g. 
-<code class="inline">(pull ?e [:person/address])</code> would be represented as 
-<code class="inline">Db._pull(Db.q?(:e), [:&quot;person/address&quot;])</code>.</p>
+    <p>Convenience shortcut for creating a Datomic pull expression.</p>
 <p>In Exdn, Clojure lists are represented as tuples with the tag <code class="inline">:list</code>, so this 
 function allows us not to have to sprinkle that syntax all over the place.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db._pull(Db.q?(:e), [:&quot;person/address&quot;])</code></pre>
+<p>sends the following to Datomic:</p>
+<pre><code class="elixir">(pull ?e [:person/address])</code></pre>
 
   </section>
 </div>
@@ -1047,8 +1096,8 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for the blank binding <code class="inline">_</code>
-as used, for example, in <code class="inline">[:find ?x :where [_ :likes ?x]]</code></p>
+    <p>Convenience shortcut for the blank binding <code class="inline">_</code> as used, for example, in: 
+<code class="inline">[:find ?x :where [_ :likes ?x]]</code></p>
 
   </section>
 </div>
@@ -1141,7 +1190,7 @@ as used, for example, in <code class="inline">[:find ?x :where [_ :likes ?x]]</c
   
   <section class="docstring">
     <p>Convenience shortcut for collection binding find specification <code class="inline">...</code>
-as used, for example, in <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
+as used, for example, in: <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
 
   </section>
 </div>
@@ -1212,24 +1261,26 @@ as used, for example, in <code class="inline">[:find ?e in $ [?a ...] :where [?e
     </div>
   
   <section class="docstring">
-    <p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function. The first parameter to this function is the pid or alias of the
-GenServer process, the second is an edn string representing the parameter that
-is to be passed to <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref.
-The third parameter is a list of atoms that represent the keys of the attributes 
-you wish to fetch, or <code class="inline">:all</code> if you want all the entity’s attributes. The options 
-keyword list may include a <code class="inline">:client_timeout</code> option that specifies the milliseconds 
-timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies 
-how long the GenServer should wait for a response before crashing (overriding 
-the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> 
-is shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the message is never returned from the Clojure peer.</p>
+    <p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is an edn string representing the parameter that is to be passed to 
+<code class="inline">entity</code>: either an entity id, an ident, or a lookup ref. The third parameter 
+is a list of atoms that represent the keys of the attributes you wish to fetch, 
+or <code class="inline">:all</code> if you want all the entity’s attributes. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
 <h2>Example</h2>
-<p>  Db.entity(DatomicGenServer, :”person/email”)</p>
-<p>  # =&gt; {ok, %{ Db.ident =&gt; :”person/email”, </p>
-<pre><code class="elixir">           Db.value_type =&gt; Db.type_string, 
-           Db.cardinality =&gt; Db.cardinality_one, 
-           Db.doc =&gt; &quot;A person&#39;s email&quot;}}</code></pre>
+<pre><code class="elixir">Db.entity(DatomicGenServer, :&quot;person/email&quot;)
+
+# =&gt; {ok, %{ Db.ident =&gt; :&quot;person/email&quot;, 
+             Db.value_type =&gt; Db.type_string, 
+             Db.cardinality =&gt; Db.cardinality_one, 
+             Db.doc =&gt; &quot;A person&#39;s email&quot;}}</code></pre>
 
   </section>
 </div>
@@ -1391,8 +1442,9 @@ the server will not crash even if the message is never returned from the Clojure
   
   <section class="docstring">
     <p>Convenience function to generate Datomic data source specifications—i.e., 
-symbols prefixed by a dollar sign. Accepts an atom as its argument, 
-representing the symbol to which the dollar sign is to be prepended.</p>
+symbols prefixed by a dollar sign. </p>
+<p>Accepts an atom as its argument, representing the symbol to which the dollar 
+sign is to be prepended.</p>
 
   </section>
 </div>
@@ -1511,19 +1563,21 @@ representing the symbol to which the dollar sign is to be prepended.</p>
   <section class="docstring">
     <p>Queries a DatomicGenServer using a query formulated as an Elixir list.
 This query is translated to an edn string which is then passed to the Datomic 
-<code class="inline">q</code> API function. The first parameter to this function is the pid or alias of 
-the GenServer process, the second is the query. The options keyword list may 
-include a <code class="inline">:client_timeout</code> option that specifies the milliseconds timeout 
-passed to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how 
-long the GenServer should wait for a response before crashing (overriding the 
-default value set in <code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>).
-Note that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> 
-value, the call will return an error but the server will not crash even if the 
-response message is never returned from the Clojure peer.</p>
+<code class="inline">q</code> API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the query. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">DatomicGenServer.start</code> or 
+<code class="inline">DatomicGenServer.start_link</code>). Note that if the <code class="inline">:client_timeout</code> is shorter 
+than the <code class="inline">:message_timeout</code> value, the call will return an error but the server 
+will not crash even if the response message is never returned from the Clojure peer.</p>
 <h2>Example</h2>
-<p>  query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "A person's name"]]
-  Db.q(DatomicGenServer, query)</p>
-<p>  #=&gt; {:ok, #MapSet&lt;['A']&gt;}  # ASCII representation of ID 65</p>
+<pre><code class="elixir">query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, &quot;A person&#39;s name&quot;]]
+Db.q(DatomicGenServer, query)
+
+#=&gt; {:ok, #MapSet&lt;[&#39;A&#39;]&gt;}  # ASCII representation of ID 65</code></pre>
 
   </section>
 </div>
@@ -1547,8 +1601,9 @@ response message is never returned from the Clojure peer.</p>
   
   <section class="docstring">
     <p>Convenience function to generate Datomic query placeholders—i.e., 
-symbols prefixed by a question mark. Accepts an atom as its argument, 
-representing the symbol to which the question mark is to be prepended.</p>
+symbols prefixed by a question mark. </p>
+<p>Accepts an atom as its argument, representing the symbol to which 
+the question mark is to be prepended.</p>
 
   </section>
 </div>
@@ -1618,7 +1673,7 @@ representing the symbol to which the question mark is to be prepended.</p>
   
   <section class="docstring">
     <p>Convenience shortcut for the single scalar find specification <code class="inline">.</code>
-as used, for example, in <code class="inline">[:find ?e . :where [?e age 42] ]</code></p>
+as used, for example, in: <code class="inline">[:find ?e . :where [?e age 42] ]</code></p>
 
   </section>
 </div>
@@ -1645,16 +1700,16 @@ as used, for example, in <code class="inline">[:find ?e . :where [?e age 42] ]</
   <section class="docstring">
     <p>Issues a transaction against a DatomicGenServer using a transaction 
 formulated as an Elixir list of maps. This transaction is translated to an edn
-string which is then passed to the Datomic <code class="inline">transact</code> API function. The first 
-parameter to this function is the pid or alias of the GenServer process, the 
-second is the transaction data. The options keyword list may include a 
-<code class="inline">:client_timeout</code> option that specifies the milliseconds timeout passed to 
-GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how long the 
-GenServer should wait for a response before crashing (overriding the default value 
-set in <code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if 
-the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
-return an error but the server will not crash even if the response message is 
-never returned from the Clojure peer.</p>
+string which is then passed to the Datomic <code class="inline">transact</code> API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process;  
+the second is the transaction data. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">DatomicGenServer.start</code> or 
+<code class="inline">DatomicGenServer.start_link</code>). Note that if the <code class="inline">:client_timeout</code> is shorter 
+than the <code class="inline">:message_timeout</code> value, the call will return an error but the server 
+will not crash even if the response message is never returned from the Clojure peer.</p>
 <h2>Example</h2>
 <pre><code class="elixir">data_to_add = [%{ 
     Db.id =&gt; Db.dbid(Db.schema_partition),
