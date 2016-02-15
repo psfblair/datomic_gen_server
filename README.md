@@ -38,7 +38,7 @@ JVM, using clojure-erlastic.
 
 ## Installation
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed as:
+If available in Hex, the package can be installed as follows:
 
   1. You will need to install the Clojure leiningen build tool in order to build
      the Clojure jar with which the application communicates. You will also need
@@ -68,6 +68,8 @@ If [available in Hex](https://hex.pm/docs/publish), the package can be installed
         end
         
 ## Usage
+
+See the Hex docs at [http://hexdocs.pm/exdn/](http://hexdocs.pm/exdn/).
 
 Start the server by calling `DatomicGenServer.start` or `DatomicGenServer.start_link`.
 These functions accept the URL of the Datomic transactor to which to connect, a
