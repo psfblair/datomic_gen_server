@@ -51,7 +51,7 @@ If available in Hex, the package can be installed as follows:
   2. Add datomic_gen_server to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:datomic_gen_server, "~> 1.0.0"}]
+          [{:datomic_gen_server, "~> 1.0.1"}]
         end
   
   3. You may want to create a config.exs file in your application that adds to 
@@ -113,9 +113,11 @@ This code has not been checked for possible injection vulnerabilities. Use at
 your own risk.
 
 Currently all interaction with Datomic is synchronous and there is no support for
-functions such as `transact-async`. Implementing this support may be somewhat
-complicated owing to the way in which the GenServer waits for replies from the
-Clojure peer (see the comments on `DatomicGenServer.wait_for_reply`).
+Datomic functions such as `transact-async`; furthermore, while the GenServer's 
+`handle_cast` callback will send requests to the Clojure peer, the responses from
+the peer will be discarded. Implementing support for `transact-async` and `handle_cast` 
+may be somewhat complicated owing to the way in which the GenServer waits for replies 
+from the Clojure peer (see the comments on `DatomicGenServer.wait_for_reply`). 
 
 Queries and transactions are passed to the Clojure peer as edn strings, and results 
 come back as edn strings. Certain Datomic APIs return references to Java objects,
