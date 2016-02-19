@@ -3,7 +3,7 @@ defmodule DatomicGenServer.Mixfile do
 
   def project do
     [app: :datomic_gen_server,
-     version: "1.0.1",
+     version: "1.1.0",
      elixir: "~> 1.2",
      description: """
        An Elixir GenServer that communicates with a Clojure Datomic peer running 
