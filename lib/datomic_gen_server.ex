@@ -201,8 +201,7 @@ defmodule DatomicGenServer do
   end
   
   @doc """
-  Issues an `entity` call to that is passed to the Datomic `entity` 
-  API function. 
+  Issues an `entity` call that is passed to the Datomic `entity` API function. 
   
   The first parameter to this function is the pid or alias of the GenServer process; 
   the second is an edn string representing the parameter that is to be passed to 
@@ -222,13 +221,84 @@ defmodule DatomicGenServer do
   
       DatomicGenServer.entity(DatomicGenServer, ":person/email", [:"db/valueType", :"db/doc"])
       
-      => "{:db/valueType :db.type/string, :db/doc \\"A person's email\\"}\\n"
+      => {:ok, "{:db/valueType :db.type/string, :db/doc \\"A person's email\\"}\\n"}
       
   """
   @spec entity(GenServer.server, String.t, [atom] | :all, [send_option]) :: datomic_result
   def entity(server_identifier, edn_str, attr_names \\ :all, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:entity, msg_unique_id, edn_str, attr_names}, options)
+  end
+
+  @doc """
+  Issues a call to net.phobot.datomic/migrator to migrate a database using
+  database migration files in edn format.
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is the path to the directory containing the migration files. Files
+  will be processed in sort order. The Clojure Conformity library is used to keep
+  the migrations idempotent. 
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.migrate(DatomicGenServer, Path.join [System.cwd(), "migrations"])
+      
+      => {:ok, :migrated}
+      
+  """
+  @spec migrate(GenServer.server, String.t, [send_option]) :: datomic_result
+  def migrate(server_identifier, migration_path, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:migrate, msg_unique_id, migration_path}, options)
+  end
+
+  @doc """
+  Issues a call to net.phobot.datomic/seed to seed a database using database 
+  migration files and seed data files in edn format. The database is not dropped
+  or recreated before migrating and seeding.
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is the path to the directory containing the migration files. The 
+  third parameter is the path to a (different) directory containing the seed data 
+  files. The migration files will be processed in the sort order of their directory, 
+  and then the seed data files in the sort order of their directory. 
+  
+  Seed data is loaded in a single transaction. The return value of the function 
+  is the result of the Datomic `transact` API function call that executed the
+  transaction. If you want this result in a struct, call the wrapper `seed` function
+  in the `DatomicGenServer.Db` module.
+  
+  The Clojure Conformity library is used to keep the migrations idempotent, but
+  the loading of seed data is not idempotent.
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+      migration_dir = Path.join [System.cwd(), "migrations"]
+      seed_data_dir = Path.join [System.cwd(), "seed-data"]
+      DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
+      
+      => {:ok, "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...
+      
+  """
+  @spec seed(GenServer.server, String.t, String.t, [send_option]) :: datomic_result
+  def seed(server_identifier, migration_path, seed_data_path, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:seed, msg_unique_id, migration_path, seed_data_path}, options)
   end
   
   @spec call_server(GenServer.server, datomic_message, [send_option]) :: datomic_result

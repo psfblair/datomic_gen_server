@@ -85,11 +85,11 @@
             {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
       [:migrate id migration-path] 
           (let [result (migrate connection migration-path)]
-            {:db (result :db-after) :result [:ok id]})
+            {:db (result :db-after) :result [:ok id :migrated]})
       [:seed id migration-path seed-data-resource-path] 
           (let [result (seed db-url connection migration-path seed-data-resource-path)]
             {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
-      [:ping] {:db database :result [:ok (prn-str #{})]}
+      [:ping] {:db database :result [:ok :ping]}
       [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone

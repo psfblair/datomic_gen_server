@@ -30,7 +30,7 @@
 (deftest test-handles-ping
   (testing "Can handle a ping message"
     (>!! in [:ping])
-    (is (= [:ok "#{}\n"] (<!! out)))))
+    (is (= [:ok :ping] (<!! out)))))
 
 (deftest test-round-trip
   (testing "Can query and transact data"
@@ -114,7 +114,7 @@
     (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
                                               "test" "resources" "migrations")]
       (>!! in [:migrate 8 (.getPath migration-dir)]))
-    (is (= [:ok 8] (<!! out)))
+    (is (= [:ok 8 :migrated] (<!! out)))
     (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]"])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
