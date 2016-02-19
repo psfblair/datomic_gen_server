@@ -88,7 +88,9 @@ messages sent during the startup phase.
 Two interfaces for interacting with Datomic are exposed. With one, you communicate
 back and forth with Datomic using edn strings; this API is exposed by 
 `DatomicGenServer`. Currently there are three interface functions corresponding
-to the Datomic API's `q`, `transact`, and `entity` functions.
+to the Datomic API's `q`, `transact`, and `entity` functions. There are also
+interface functions `migrate` and `seed` allowing you to migrate a database and
+to seed it with test data.
 
 A second API allows you to interact with Datomic using Elixir data structures as set 
 out in the [Exdn project](http://github.com/psfblair/exdn) for translating between 
@@ -97,7 +99,8 @@ functions such as `q` and `entity` are translated back to Elixir data structures
 using Exdn's "irreversible" data translators, which can also accept converter 
 functions that will transform the data into your own structures or custom formats
 (see the tests for examples). The results of `transact` are returned in a
-`DatomicTransaction` struct; the datoms are returned in `Datom` structs.
+`DatomicTransaction` struct; the datoms are returned in `Datom` structs. The
+results of `seed` are also encoded in a `DatomicTransaction` struct.
 
 The `entity` functions in both `DatomicGenServer` and `DatomicGenServer.Db` allow 
 passing in a list of keys representing the attributes you wish to fetch, or `:all` 
