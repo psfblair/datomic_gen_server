@@ -1,0 +1,33 @@
+[ ; Categories
+  { :db/id #db/keyid[:test/main :category/sports]
+    :category/name "Sports"
+  
+  ; ; Subcategories
+  { :db/id #db/keyid[:test/main :subcategory/baseball]
+    :subcategory/name "Baseball"}
+  { :db/id #db/keyid[:test/main :subcategory/football]
+    :subcategory/name "Football"}
+  { :db/id #db/keyid[:test/main :subcategory/soccer]
+    :subcategory/name "Soccer"}
+  { :db/id #db/keyid[:test/main :subcategory/basketball]
+    :subcategory/name "Basketball"}
+  { :db/id #db/keyid[:test/main :subcategory/hockey]
+    :subcategory/name "Hockey"}
+  { :db/id #db/keyid[:test/main :subcategory/golf]
+    :subcategory/name "Golf"}
+  { :db/id #db/keyid[:test/main :subcategory/tennis]
+    :subcategory/name "Tennis"}
+
+  ; Category/Subcategory relation
+  { :db/id #db/lookupid :category/sports
+    :category/subcategories #db/lookupids 
+      [ :subcategory/baseball
+        :subcategory/football
+        :subcategory/soccer
+        :subcategory/basketball
+        :subcategory/hockey
+        :subcategory/golf
+        :subcategory/tennis
+      ]
+  }
+]

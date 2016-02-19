@@ -4,7 +4,13 @@
             [clojure-erlastic.core :refer [port-connection]]
             [clojure.core.match :refer [match]]
             [datomic.api :as datomic]
+            [net.phobot.datomic.migrator :refer [run-migrations]]
+            [net.phobot.datomic.seed :refer [seed-database]]
   ))
+
+; TODO Maybe want to configure this
+; The amount of time to wait after a migration for a db sync to occur.
+(def migration-timeout-ms 5000)
 
 (defn- connect [db-url create?]
   (try 
@@ -14,7 +20,8 @@
         (do (datomic/create-database db-url)
           (datomic/connect db-url))
         (throw e)))))
-  
+
+; TODO SUPPORT BINDINGS
 (defn- q [database edn-str]
   (-> (datomic/q edn-str database) prn-str))
 
@@ -49,19 +56,39 @@
         :db-after {:basis-t after-basis-t}
         :tx-data (into [] (map serialize-datoms tx-data))
         :tempids (transaction-response :tempids)
-      })))     
+      })))
+      
+(defn- migrate [connection migration-path]
+  ;; TODO Figure out a better way to handle logging
+  (let [logger-fn (fn [& args] nil)]
+    (run-migrations connection migration-path logger-fn)
+    ; run-migrations calls doseq, which returns nil, so migrate does not supply a db-after
+    {:db-after (deref (datomic/sync connection) migration-timeout-ms nil)}))
 
+(defn- seed [db-url connection migration-path seed-data-resource-path]
+  ;; TODO Figure out a better way to handle logging
+  (let [logger-fn (fn [& args] nil)
+        completed-future (seed-database db-url connection migration-path seed-data-resource-path logger-fn)]
+    @completed-future))
+  
 ; Returns the result along with the state of the database, or nil if shut down.
 ; Results are vectors starting with :ok or :error so that they go back to Elixir
 ; as the corresponding tuples.
-(defn- process-message [message database connection]
+(defn- process-message [message database connection db-url]
   (try
     (match message
       ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
       [:q id edn] {:db database :result [:ok id (q database edn)]}
-      [:transact id edn] (let [result (transact connection edn)]
-                          {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
       [:entity id edn attr-names] {:db database :result [:ok id (entity database edn attr-names)]}
+      [:transact id edn] 
+          (let [result (transact connection edn)]
+            {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
+      [:migrate id migration-path] 
+          (let [result (migrate connection migration-path)]
+            {:db (result :db-after) :result [:ok id]})
+      [:seed id migration-path seed-data-resource-path] 
+          (let [result (seed db-url connection migration-path seed-data-resource-path)]
+            {:db (result :db-after) :result [:ok id]})
       [:ping] {:db database :result [:ok (prn-str #{})]}
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
@@ -80,7 +107,7 @@
       (<!! (go 
         (loop [database (datomic/db connection)]
           (let [message (<! in)
-                result (process-message message database connection)]
+                result (process-message message database connection db-url)]
             (if (some? result)
               (do
                 (>! out (result :result))

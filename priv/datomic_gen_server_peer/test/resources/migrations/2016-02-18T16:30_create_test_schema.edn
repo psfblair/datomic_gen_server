@@ -1,0 +1,40 @@
+{:datomic-gen-server-peer/create-test-schema
+  {:txes [
+    [ ; Partition creation transaction
+      { :db/id #db/id [:db.part/db]
+        :db/ident :test/main
+        :db.install/_partition :db.part/db}
+    ]
+    [ ; Category entity transaction
+      { :db/id #db/id [:db.part/db]
+        :db/ident :category/name
+        :db/doc "A category's name"
+        :db/valueType :db.type/string
+        :db/cardinality :db.cardinality/one
+        :db/unique :db.unique/identity
+        :db.install/_attribute :db.part/db}
+    ]
+    [ ; Subcategory entity transaction
+      { :db/id #db/id [:db.part/db]
+        :db/ident :subcategory/name
+        :db/doc "A subcategory's name"
+        :db/valueType :db.type/string
+        :db/cardinality :db.cardinality/one
+        :db/unique :db.unique/identity
+        :db.install/_attribute :db.part/db}
+    ]
+    [ ; Category/Subcategory relation transaction
+      ; Datomic doesn't guarantee the target of the reference is of a specific type.
+      ; Also, like all isComponent constraints, datomic will not enforce that a
+      ; component entity only has one parent.
+      { :db/id #db/id [:db.part/db]
+        :db/ident :category/subcategories
+        :db/doc "A category's subcategories"
+        :db/valueType :db.type/ref
+        :db/cardinality :db.cardinality/many
+        :db/index true
+        :db/isComponent true
+        :db.install/_attribute :db.part/db}
+    ]
+  ]}
+}

@@ -109,15 +109,46 @@
       (is (= {:db/ident :person/email} response-edn)))
     ))
 
+(deftest test-migration
+  (testing "Can run data migrations"
+    (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+                                              "test" "resources" "migrations")]
+      (>!! in [:migrate 8 (.getPath migration-dir)]))
+    (println "RETURNED FROM MIGRATION: " (<!! out)) ;; ignore response
+    (>!! in [:q 9 "[:find ?c :where [?c :db/doc \"A category's name\"]]"])
+    ; (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]"])
+    (let [query-result (<!! out)]
+      (is (= (query-result 0) :ok))
+      (is (= (query-result 1) 9))
+      (is (= "#{:category/name}\n" (query-result 2))))))
+  
+(deftest test-seed
+  (testing "Can seed a database"
+    (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+                                                "test" "resources" "migrations")
+          seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
+      (>!! in [:seed 10 (.getPath migration-dir) (.getPath seed-dir)]))
+    (<!! out) ;; ignore response
+    (>!! in [:q 11 (str "[:find ?c :where "
+                        "[?e :category/name ?c] "
+                        "[?s :category/_subcategories ?e] "
+                        "[?s :subcategory/name \"Soccer\"]]")])
+    (let [query-result (<!! out)]
+      (is (= (query-result 0) :ok))
+      (is (= (query-result 1) 11))
+      (is (= "#{\"Sports\"}\n" (query-result 2))))))
+  
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"
-    (>!! in [:unknown 8 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
-    (is (= (nth (<!! out) 0) :error))))
+    (>!! in [:unknown 12 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
+    (let [response (<!! out)]
+      (is (= (nth response 0) :error))
+      (is (= (nth response 1) [:unknown 12 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])))))
       
 (deftest test-garbled-messages
   (testing "Can handle garbled messages"
-    (>!! in [:q 9 "[:find ?c }"])
+    (>!! in [:q 13 "[:find ?c }"])
     (let [response (<!! out)]
       (is (= (nth response 0) :error))
-      (is (= (nth response 1) [:q 9 "[:find ?c }"])))))
+      (is (= (nth response 1) [:q 13 "[:find ?c }"])))))
     
