@@ -1,6 +1,6 @@
 [ ; Categories
   { :db/id #db/keyid[:test/main :category/sports]
-    :category/name "Sports"
+    :category/name "Sports"}
   
   ; ; Subcategories
   { :db/id #db/keyid[:test/main :subcategory/baseball]

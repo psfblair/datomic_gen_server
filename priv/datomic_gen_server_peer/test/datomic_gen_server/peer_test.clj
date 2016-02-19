@@ -18,7 +18,7 @@
     (binding [in (chan) out (chan)]
       (let [exit-channel (go (start-server db-uri in out true))]
         (test-fun)
-        (>!! in [:exit])
+        (>!! in [:stop]) ; This does a datomic/shutdown but does not release clojure resources
         (<!! exit-channel) ; Make sure we've exited before going on
         (close! in)
         (close! out)
@@ -114,13 +114,12 @@
     (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
                                               "test" "resources" "migrations")]
       (>!! in [:migrate 8 (.getPath migration-dir)]))
-    (println "RETURNED FROM MIGRATION: " (<!! out)) ;; ignore response
-    (>!! in [:q 9 "[:find ?c :where [?c :db/doc \"A category's name\"]]"])
-    ; (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]"])
+    (is (= [:ok 8] (<!! out)))
+    (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]"])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (= (query-result 1) 9))
-      (is (= "#{:category/name}\n" (query-result 2))))))
+      (is (= "#{[:category/name]}\n" (query-result 2))))))
   
 (deftest test-seed
   (testing "Can seed a database"
@@ -128,15 +127,18 @@
                                                 "test" "resources" "migrations")
           seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
       (>!! in [:seed 10 (.getPath migration-dir) (.getPath seed-dir)]))
-    (<!! out) ;; ignore response
+    (let [transaction-result (<!! out)]
+        (is (= (transaction-result 0) :ok))
+        (is (= (transaction-result 1) 10))
+        (is (.startsWith (transaction-result 2) "{:db-before {:basis-t")))
     (>!! in [:q 11 (str "[:find ?c :where "
                         "[?e :category/name ?c] "
-                        "[?s :category/_subcategories ?e] "
+                        "[?e :category/subcategories ?s] "
                         "[?s :subcategory/name \"Soccer\"]]")])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (= (query-result 1) 11))
-      (is (= "#{\"Sports\"}\n" (query-result 2))))))
+      (is (= "#{[\"Sports\"]}\n" (query-result 2))))))
   
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"

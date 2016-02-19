@@ -68,7 +68,7 @@
 (defn- seed [db-url connection migration-path seed-data-resource-path]
   ;; TODO Figure out a better way to handle logging
   (let [logger-fn (fn [& args] nil)
-        completed-future (seed-database db-url connection migration-path seed-data-resource-path logger-fn)]
+        completed-future (seed-database connection migration-path seed-data-resource-path logger-fn)]
     @completed-future))
   
 ; Returns the result along with the state of the database, or nil if shut down.
@@ -88,8 +88,9 @@
             {:db (result :db-after) :result [:ok id]})
       [:seed id migration-path seed-data-resource-path] 
           (let [result (seed db-url connection migration-path seed-data-resource-path)]
-            {:db (result :db-after) :result [:ok id]})
+            {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
       [:ping] {:db database :result [:ok (prn-str #{})]}
+      [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
     (catch Exception e {:db database :result [:error message e]})))
