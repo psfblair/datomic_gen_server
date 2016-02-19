@@ -5,8 +5,8 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.11.3">
-    <title>DatomicGenServer.Db – datomic_gen_server v1.0.1</title>
-    <link rel="stylesheet" href="dist/app-ddd9717ad9.css" />
+    <title>DatomicGenServer.Db – datomic_gen_server v1.1.0</title>
+    <link rel="stylesheet" href="" />
     <script src="dist/sidebar_items.js"></script>
   </head>
   <body data-type="modules">
@@ -27,7 +27,7 @@
         datomic_gen_server
       </h1>
       <h2 class="sidebar-projectVersion">
-        v1.0.1
+        v1.1.0
       </h2>
     </div>
     
@@ -59,7 +59,7 @@
 
 
       <h1>
-        <small class="visible-xs">datomic_gen_server v1.0.1</small>
+        <small class="visible-xs">datomic_gen_server v1.1.0</small>
         DatomicGenServer.Db
         
         
@@ -78,7 +78,8 @@
 <h2>Interface functions</h2>
 <pre><code class="elixir">q(server_identifier, exdn, options \ [])
 transact(server_identifier, exdn, options \ [])
-entity(server_identifier, exdn, attr_names \ :all, options \ [])</code></pre>
+entity(server_identifier, exdn, attr_names \ :all, options \ [])
+seed(server_identifier, migration_path, seed_data_path, options \ [])</code></pre>
 <h2>Datomic Shortcuts</h2>
 <h3>Id/ident</h3>
 <pre><code class="elixir">dbid(db_part)
@@ -523,6 +524,17 @@ symbols prefixed by a question mark</p>
   </div>
   
     <div class="summary-synopsis"><p>Convenience shortcut for <code class="inline">:&quot;db.part/db&quot;</code></p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#seed/4">seed(server_identifier, migration_path, seed_data_path, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a call to net.phobot.datomic/seed to seed a database using database 
+migration files and seed data files in edn format. The database is not dropped
+or recreated before migrating and seeding</p>
 </div>
   
 </div>
@@ -1653,6 +1665,56 @@ the question mark is to be prepended.</p>
 
   </section>
 </div>
+<div class="detail" id="seed/4">
+  <div class="detail-header">
+    <a href="#seed/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">seed(server_identifier, migration_path, seed_data_path, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">seed(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="DatomicGenServer.html#t:send_option/0">DatomicGenServer.send_option</a>]) ::
+  {:ok, <a href="DatomicGenServer.Db.DatomicTransaction.html#t:t/0">DatomicGenServer.Db.DatomicTransaction.t</a>} |
+  {:error, term}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a call to net.phobot.datomic/seed to seed a database using database 
+migration files and seed data files in edn format. The database is not dropped
+or recreated before migrating and seeding.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the path to the directory containing the migration files. The 
+third parameter is the path to a (different) directory containing the seed data 
+files. The migration files will be processed in the sort order of their directory, 
+and then the seed data files in the sort order of their directory. </p>
+<p>Seed data is loaded in a single transaction. The return value of the function 
+is the result of the Datomic <code class="inline">transact</code> API function call that executed the
+transaction, wrapped in a <code class="inline">DatomicTransaction</code> struct.</p>
+<p>The Clojure Conformity library is used to keep the migrations idempotent, but
+the loading of seed data is not idempotent.</p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">migration_dir = Path.join [System.cwd(), &quot;migrations&quot;]
+seed_data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
+DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
+
+=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
+
+  </section>
+</div>
 <div class="detail" id="single_scalar/0">
   <div class="detail-header">
     <a href="#single_scalar/0" class="detail-link" title="Link to this function">
@@ -2221,7 +2283,7 @@ Db.transact(DatomicGenServer, data_to_add)
   </div>
 </section>
 </div>
-  <script src="dist/app-6d2e071366.js"></script>
+  <script src=""></script>
   </body>
 </html>
 

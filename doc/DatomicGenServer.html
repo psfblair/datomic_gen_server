@@ -5,8 +5,8 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.11.3">
-    <title>DatomicGenServer – datomic_gen_server v1.0.1</title>
-    <link rel="stylesheet" href="dist/app-ddd9717ad9.css" />
+    <title>DatomicGenServer – datomic_gen_server v1.1.0</title>
+    <link rel="stylesheet" href="" />
     <script src="dist/sidebar_items.js"></script>
   </head>
   <body data-type="modules">
@@ -27,7 +27,7 @@
         datomic_gen_server
       </h1>
       <h2 class="sidebar-projectVersion">
-        v1.0.1
+        v1.1.0
       </h2>
     </div>
     
@@ -59,7 +59,7 @@
 
 
       <h1>
-        <small class="visible-xs">datomic_gen_server v1.0.1</small>
+        <small class="visible-xs">datomic_gen_server v1.1.0</small>
         DatomicGenServer
         
         
@@ -163,8 +163,17 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
     <a href="#entity/4">entity(server_identifier, edn_str, attr_names \\ :all, options \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function</p>
+    <div class="summary-synopsis"><p>Issues an <code class="inline">entity</code> call that is passed to the Datomic <code class="inline">entity</code> API function</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#migrate/3">migrate(server_identifier, migration_path, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a call to net.phobot.datomic/migrator to migrate a database using
+database migration files in edn format</p>
 </div>
   
 </div>
@@ -175,6 +184,17 @@ API function</p>
   
     <div class="summary-synopsis"><p>Queries a DatomicGenServer using a query formulated as an edn string.
 This query is passed to the Datomic <code class="inline">q</code> API function</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#seed/4">seed(server_identifier, migration_path, seed_data_path, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a call to net.phobot.datomic/seed to seed a database using database 
+migration files and seed data files in edn format. The database is not dropped
+or recreated before migrating and seeding</p>
 </div>
   
 </div>
@@ -286,8 +306,7 @@ API function</p>
     </div>
   
   <section class="docstring">
-    <p>Issues an <code class="inline">entity</code> call to that is passed to the Datomic <code class="inline">entity</code> 
-API function. </p>
+    <p>Issues an <code class="inline">entity</code> call that is passed to the Datomic <code class="inline">entity</code> API function. </p>
 <p>The first parameter to this function is the pid or alias of the GenServer process; 
 the second is an edn string representing the parameter that is to be passed to 
 <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref. The third parameter 
@@ -303,7 +322,46 @@ is never returned from the Clojure peer.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.entity(DatomicGenServer, &quot;:person/email&quot;, [:&quot;db/valueType&quot;, :&quot;db/doc&quot;])
 
-=&gt; &quot;{:db/valueType :db.type/string, :db/doc \&quot;A person&#39;s email\&quot;}\n&quot;</code></pre>
+=&gt; {:ok, &quot;{:db/valueType :db.type/string, :db/doc \&quot;A person&#39;s email\&quot;}\n&quot;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="migrate/3">
+  <div class="detail-header">
+    <a href="#migrate/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">migrate(server_identifier, migration_path, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">migrate(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a call to net.phobot.datomic/migrator to migrate a database using
+database migration files in edn format.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the path to the directory containing the migration files. Files
+will be processed in sort order. The Clojure Conformity library is used to keep
+the migrations idempotent. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">DatomicGenServer.migrate(DatomicGenServer, Path.join [System.cwd(), &quot;migrations&quot;])
+
+=&gt; {:ok, :migrated}</code></pre>
 
   </section>
 </div>
@@ -341,6 +399,55 @@ not crash even if the response message is never returned from the Clojure peer.<
 DatomicGenServer.q(DatomicGenServer, query)
 
 =&gt; {:ok, &quot;#{}\n&quot;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="seed/4">
+  <div class="detail-header">
+    <a href="#seed/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">seed(server_identifier, migration_path, seed_data_path, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">seed(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a call to net.phobot.datomic/seed to seed a database using database 
+migration files and seed data files in edn format. The database is not dropped
+or recreated before migrating and seeding.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the path to the directory containing the migration files. The 
+third parameter is the path to a (different) directory containing the seed data 
+files. The migration files will be processed in the sort order of their directory, 
+and then the seed data files in the sort order of their directory. </p>
+<p>Seed data is loaded in a single transaction. The return value of the function 
+is the result of the Datomic <code class="inline">transact</code> API function call that executed the
+transaction. If you want this result in a struct, call the wrapper <code class="inline">seed</code> function
+in the <a href="DatomicGenServer.Db.html"><code class="inline">DatomicGenServer.Db</code></a> module.</p>
+<p>The Clojure Conformity library is used to keep the migrations idempotent, but
+the loading of seed data is not idempotent.</p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">migration_dir = Path.join [System.cwd(), &quot;migrations&quot;]
+seed_data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
+DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
+
+=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
 
   </section>
 </div>
@@ -496,7 +603,7 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
   </div>
 </section>
 </div>
-  <script src="dist/app-6d2e071366.js"></script>
+  <script src=""></script>
   </body>
 </html>
 
