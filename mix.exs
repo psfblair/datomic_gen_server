@@ -3,6 +3,7 @@ defmodule DatomicGenServer.Mixfile do
 
   def project do
     [app: :datomic_gen_server,
+    # NOTE!! - This package lists files to include explicitly - see below under package
      version: "1.1.0",
      elixir: "~> 1.2",
      description: """
@@ -48,7 +49,16 @@ defmodule DatomicGenServer.Mixfile do
   defp package do
     [maintainers: ["Paul Blair"],
      licenses: ["MIT"],
-     links: %{github: "https://github.com/psfblair/datomic_gen_server"}]
+     links: %{github: "https://github.com/psfblair/datomic_gen_server"},
+     files: [
+        "lib/datomic_gen_server.ex",
+        "lib/datomic_gen_server/db.ex",
+        "priv/datomic_gen_server_peer/project.clj",
+        "priv/datomic_gen_server_peer/src/datomic_gen_server/peer.clj",
+        "mix.exs",
+        "README.md"
+     ]
+   ]
   end
 
   defp clean_uberjars(_) do
