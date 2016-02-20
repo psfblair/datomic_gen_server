@@ -21,12 +21,18 @@
           (datomic/connect db-url))
         (throw e)))))
 
-; TODO SUPPORT BINDINGS
-(defn- q [database edn-str]
-  (-> (datomic/q edn-str database) prn-str))
-
 (defn- read-edn [edn-str]
   (clojure.edn/read-string {:readers *data-readers*} edn-str))
+
+;; This allows us to bind datomic_gen_server.peer/*db* in the edn that is passed in
+(declare ^:dynamic *db*)
+(defn- q [database edn-str binding-edn-list]
+  (if (empty? binding-edn-list)
+      (let [result (-> edn-str (datomic/q database) prn-str)]
+        result)
+    (binding [*db* database]
+      (let [result (->> binding-edn-list (map read-edn) (map eval) (apply datomic/q edn-str) prn-str)]
+        result))))
 
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
@@ -78,7 +84,7 @@
   (try
     (match message
       ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
-      [:q id edn] {:db database :result [:ok id (q database edn)]}
+      [:q id edn binding-edn] {:db database :result [:ok id (q database edn binding-edn)]}
       [:entity id edn attr-names] {:db database :result [:ok id (entity database edn attr-names)]}
       [:transact id edn] 
           (let [result (transact connection edn)]
@@ -93,7 +99,9 @@
       [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
       [:exit] (do (datomic/shutdown true) nil)
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
-    (catch Exception e {:db database :result [:error message e]})))
+    (catch Exception e 
+      (let [response {:db database :result [:error message e]}]
+        response))))
 
 (defn- exit-loop [in out] 
   (do

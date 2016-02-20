@@ -86,11 +86,15 @@ defmodule DatomicGenServer.Db do
 
       implicit
       inS(placeholder_atom)
+      db
+      as_of(tx_id)
+      since(tx_id)
+      history
 
 ### Bindings and find specifications
 
       single_scalar
-      blank_binding
+      blank
       collection_binding(placeholder_atom)
 
 ### Clauses
@@ -172,6 +176,10 @@ defmodule DatomicGenServer.Db do
   end
 
 ############################# INTERFACE FUNCTIONS  ############################
+# TODO Rest API allows for limit and offset on query; this is implemented as
+# a call to take and drop on the result set, but we would probably prefer to
+# do this in Clojure before returning it back to Elixir.
+
   @doc """
   Queries a DatomicGenServer using a query formulated as an Elixir list.
   This query is translated to an edn string which is then passed to the Datomic 
@@ -196,18 +204,29 @@ defmodule DatomicGenServer.Db do
       #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
       
   """
-
-  @spec q(GenServer.server, [Exdn.exdn], [query_option]) :: {:ok, term} | {:error, term}
-  def q(server_identifier, exdn, options \\ []) do
-    case Exdn.from_elixir(exdn) do
-      {:ok, edn_str} -> 
-        case DatomicGenServer.q(server_identifier, edn_str, options) do
-          {:ok, reply_str} -> convert_query_response(reply_str, options)
-          error -> error
-        end
-      parse_error -> parse_error
+  @spec q(GenServer.server, [Exdn.exdn], [Exdn.exdn], [query_option]) :: {:ok, term} | {:error, term}
+  def q(server_identifier, exdn, exdn_bindings \\ [], options \\ []) do
+    
+    {valid, invalid} = exdn_bindings |> Enum.map(&Exdn.from_elixir/1) |> Enum.partition(&is_ok/1)
+    # TODO Get yourself a monad!
+    if Enum.empty?(invalid) do
+      bindings = Enum.map(valid, fn({:ok, binding}) -> binding end)
+      
+      case Exdn.from_elixir(exdn) do
+        {:ok, edn_str} -> 
+          case DatomicGenServer.q(server_identifier, edn_str, bindings, options) do
+            {:ok, reply_str} -> convert_query_response(reply_str, options)
+            error -> error
+          end
+        parse_error -> parse_error
+      end
+    else
+      {:error, invalid}
     end
   end
+
+  defp is_ok({ :ok, _ }), do: true
+  defp is_ok(_),          do: false
 
   @doc """
   Issues a transaction against a DatomicGenServer using a transaction 
@@ -554,18 +573,89 @@ defmodule DatomicGenServer.Db do
   Accepts an atom as its argument, representing the symbol to which the dollar 
   sign is to be prepended.
   """  
-  @spec inS(atom) :: {:symbol, atom }
+  @spec inS(atom) :: {:symbol, atom}
   def inS(placeholder_atom) do
     placeholder = placeholder_atom |> to_string
     with_dollar_sign = "$" <> placeholder |> String.to_atom
     {:symbol, with_dollar_sign }    
   end
+  
+  @doc """
+  Convenience shortcut to allow you to pass the current database in the data source
+  bindings to a query or transaction.
+  
+  This gets bound to the value of the Clojure dynamic variable 
+  `datomic_gen_server.peer/*db*` inside the peer.
+  
+  This value is also used inside functions such as `as_of` which take the database
+  and return a different database value based on transaction time etc.
 
+## Example
+
+      Db.q(DatomicGenServer, 
+            [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+             :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+           [Db.db, "A person's address"]
+      )
+
+  """  
+  @spec db :: {:symbol, atom}
+  def db, do: {:symbol, :"datomic_gen_server.peer/*db*"}
+  
+  # TODO Allow dates
+  @doc """
+  Convenience function to allow passing a call to the Datomic `as-of` API function
+  when creating data source bindings to a query or transaction. 
+  
+  Accepts an integer as its argument, representing a transaction number or 
+  transaction ID. Dates are not yet supported.
+  
+## Example
+
+      Db.q(DatomicGenServer, 
+            [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+             :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+           [Db.as_of(transaction.basis_t_after), "A person's address"]
+      )
+
+  """  
+  @spec as_of(integer) :: {:list, [Exdn.exdn] }
+  def as_of(tx_id), do: datomic_expression(:"datomic.api/as-of", [db, tx_id])
+  
+  # TODO Allow dates
+  @doc """
+  Convenience function to allow passing a call to the Datomic `since` API function
+  when creating data source bindings to a query or transaction. 
+  
+  Accepts an integer as its argument, representing a transaction number or 
+  transaction ID. Dates are not yet supported.
+  
+## Example
+
+      Db.q(DatomicGenServer, 
+            [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+             :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+           [Db.since(transaction.basis_t_after), "A person's address"]
+      )
+
+  """  
+  @spec since(integer) :: {:list, [Exdn.exdn] }
+  def since(tx_id), do: datomic_expression(:"datomic.api/since", [db, tx_id])
+
+  @doc """
+  Convenience shortcut to allw passing a call to the Datomic `history` API function
+  when creating data source bindings to a query or transaction.
+  
+  This will become of use when datoms and index-range calls and queries are
+  supported.
+  """  
+  @spec history :: {:list, [Exdn.exdn] }
+  def history, do: datomic_expression(:"datomic.api/history", [db])
+  
   # Bindings and find specifications
   @doc """
   Convenience shortcut for the single scalar find specification `.`
   as used, for example, in: `[:find ?e . :where [?e age 42] ]`
-
   """
   @spec single_scalar :: {:symbol, :"."}
   def single_scalar, do: {:symbol, :"."}
@@ -573,15 +663,13 @@ defmodule DatomicGenServer.Db do
   @doc """
   Convenience shortcut for the blank binding `_` as used, for example, in: 
   `[:find ?x :where [_ :likes ?x]]`
-
   """
-  @spec blank_binding :: {:symbol, :"_"}
-  def blank_binding, do: {:symbol, :"_"}
+  @spec blank :: {:symbol, :"_"}
+  def blank, do: {:symbol, :"_"}
 
   @doc """
   Convenience shortcut for collection binding find specification `...`
   as used, for example, in: `[:find ?e in $ [?a ...] :where [?e age ?a] ]`
-
   """
   @spec collection_binding(atom) :: [{:symbol, atom},...]
   def collection_binding(placeholder_atom) do

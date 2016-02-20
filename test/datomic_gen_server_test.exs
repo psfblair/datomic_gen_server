@@ -1,5 +1,6 @@
 defmodule DatomicGenServerTest do
   use ExUnit.Case, async: false
+  alias DatomicGenServer.Db, as: Db
   
   setup_all do
     # Need long timeouts to let the JVM start.
@@ -11,7 +12,7 @@ defmodule DatomicGenServerTest do
     :ok
   end
   
-  test "can issue Datomic queries" do
+  test "can issue multiple Datomic queries" do
     query = "[:find ?c :where [?c :db/doc \"Some docstring that shouldn't be in the database\"]]"
     result = DatomicGenServer.q(DatomicGenServer, query)
     assert {:ok, "\#{}\n"} == result
@@ -19,6 +20,14 @@ defmodule DatomicGenServerTest do
     assert {:ok, "\#{}\n"} == second_result
   end
   
+  test "can issue parameterized queries" do
+    query = "[:find ?c :in $ ?docstring :where [?c :db/doc ?docstring]]"
+    result = DatomicGenServer.q(DatomicGenServer, query, 
+      ["datomic_gen_server.peer/*db*", "\"Some docstring that shouldn't be in the database\""]
+    )
+    assert {:ok, "\#{}\n"} == result
+  end
+
   test "can execute Datomic transactions" do
     data_to_add = """
       [ { :db/id #db/id[:db.part/db]
@@ -37,6 +46,32 @@ defmodule DatomicGenServerTest do
     query = "[:find ?c :where [?c :db/doc \"A person's name\"]]"
     {:ok, result_str} = DatomicGenServer.q(DatomicGenServer, query)
     assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
+  end
+  
+  test "can issue as-of queries" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/address",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's address",
+        Db.install_attribute => Db.schema_partition
+    }]
+    
+    # Get an interpreted struct so we can use the tx time.
+    {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
+    
+    query = "[:find ?ident :in $ ?docstring :where [?e :db/doc ?docstring][?e :db/ident ?ident]]"
+    
+    before_result = DatomicGenServer.q(DatomicGenServer, query, 
+      ["(datomic.api/as-of datomic_gen_server.peer/*db* #{transaction_result.basis_t_before})", "\"A person's address\""]
+    ) 
+    assert {:ok, "\#{}\n"} == before_result
+    
+    after_result = DatomicGenServer.q(DatomicGenServer, query, 
+      ["(datomic.api/as-of datomic_gen_server.peer/*db* #{transaction_result.basis_t_after})", "\"A person's address\""]
+    ) 
+    assert {:ok, "\#{[:person/address]}\n"} == after_result
   end
   
   test "can handle multiple messages from different processes" do

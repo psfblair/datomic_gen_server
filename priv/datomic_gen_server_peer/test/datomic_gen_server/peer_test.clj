@@ -35,7 +35,7 @@
 (deftest test-round-trip
   (testing "Can query and transact data"
   
-    (>!! in [:q 1 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
+    (>!! in [:q 1 "[:find ?c :where [?c :db/doc \"A person's name\"]]" '()])
     (is (= [:ok 1 "#{}\n"] (<!! out)))
     
     (>!! in [:transact 2 "[ {:db/id #db/id[:db.part/db]
@@ -65,7 +65,7 @@
       (is (= clojure.lang.PersistentArrayMap (type (edn-data :tempids))))
       )
       
-    (>!! in [:q 3 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
+    (>!! in [:q 3 "[:find ?c :where [?c :db/doc \"A person's name\"]]" '()])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (= (query-result 1) 3))
@@ -115,7 +115,7 @@
                                               "test" "resources" "migrations")]
       (>!! in [:migrate 8 (.getPath migration-dir)]))
     (is (= [:ok 8 :migrated] (<!! out)))
-    (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]"])
+    (>!! in [:q 9 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]" '()])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (= (query-result 1) 9))
@@ -134,7 +134,8 @@
     (>!! in [:q 11 (str "[:find ?c :where "
                         "[?e :category/name ?c] "
                         "[?e :category/subcategories ?s] "
-                        "[?s :subcategory/name \"Soccer\"]]")])
+                        "[?s :subcategory/name \"Soccer\"]]") 
+              '()])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
       (is (= (query-result 1) 11))
@@ -149,8 +150,39 @@
       
 (deftest test-garbled-messages
   (testing "Can handle garbled messages"
-    (>!! in [:q 13 "[:find ?c }"])
+    (>!! in [:q 13 "[:find ?c }" '()])
     (let [response (<!! out)]
       (is (= (nth response 0) :error))
-      (is (= (nth response 1) [:q 13 "[:find ?c }"])))))
-    
+      (is (= (nth response 1) [:q 13 "[:find ?c }" '()])))))
+
+(deftest test-query-bindings
+  (testing "Can bind queries"
+    (>!! in [:transact 14 "[ {:db/id #db/id[:db.part/db]
+                             :db/ident :person/address
+                             :db/valueType :db.type/string
+                             :db/cardinality :db.cardinality/one
+                             :db/doc \"A person's address\"
+                             :db.install/_attribute :db.part/db}]"])
+                             
+     (let [edn-data (read-edn-response (<!! out))
+           basis-t-before ((edn-data :db-before) :basis-t)
+           basis-t-after ((edn-data :db-after) :basis-t)
+           as-of-before (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-before ")")
+           as-of-after (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-after ")")
+           query "[:find ?ident :in $ ?docstring :where [?e :db/doc ?docstring][?e :db/ident ?ident]]"
+           before-bindings (list as-of-before "\"A person's address\"")
+           after-bindings (list as-of-after "\"A person's address\"")]
+           
+         (>!! in [:q 15 query before-bindings])
+     
+         (let [query-result (<!! out)]
+           (is (= (query-result 0) :ok))
+           (is (= (query-result 1) 15))
+           (is (= "#{}\n" (query-result 2))))
+       
+         (>!! in [:q 16 query after-bindings])
+     
+         (let [query-result (<!! out)]
+           (is (= (query-result 0) :ok))
+           (is (= (query-result 1) 16))
+           (is (= "#{[:person/address]}\n" (query-result 2)))))))

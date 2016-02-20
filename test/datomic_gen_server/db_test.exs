@@ -12,8 +12,11 @@ defmodule DatomicGenServer.DbTest do
     :ok
   end
   
-  test "can issue Datomic queries" do
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), Db.doc, "Some docstring that shouldn't be in the database"]]
+  test "can issue multiple Datomic queries" do
+    query = [
+      :find, Db.q?(:c), :where, 
+        [Db.q?(:c), Db.doc, "Some docstring that shouldn't be in the database"]
+    ]
     result = Db.q(DatomicGenServer, query)
     
     empty_set = MapSet.new()
@@ -23,6 +26,18 @@ defmodule DatomicGenServer.DbTest do
     assert {:ok, empty_set} == second_result
   end
   
+  test "can issue parameterized queries" do
+    query = [
+      :find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), :where, 
+        [Db.q?(:c), Db.doc, Db.q?(:docstring)]
+    ]
+    
+    result = Db.q(DatomicGenServer, query, [Db.db, "Some docstring that shouldn't be in the database"])
+    
+    empty_set = MapSet.new()
+    assert {:ok, empty_set} == result
+  end
+
   test "can execute Datomic transactions" do
     data_to_add = [%{ 
         Db.id => Db.dbid(Db.schema_partition),
@@ -61,6 +76,52 @@ defmodule DatomicGenServer.DbTest do
     assert 1 == Enum.count(query_result)
   end
   
+  test "can issue as-of queries" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/address",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's address",
+        Db.install_attribute => Db.schema_partition
+    }]
+    
+    {:ok, transaction_result} = Db.transact(DatomicGenServer, data_to_add)
+    
+    query = [
+      :find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), :where, 
+        [Db.q?(:c), Db.doc, Db.q?(:docstring)]
+    ]
+    
+    {:ok, before_result} = Db.q(DatomicGenServer, query, 
+      [Db.as_of(transaction_result.basis_t_before), "A person's address"]
+    ) 
+    assert 0 == Enum.count(before_result)
+    
+    {:ok, after_result} = Db.q(DatomicGenServer, query, 
+      [Db.as_of(transaction_result.basis_t_after), "A person's address"]
+    ) 
+    assert 1 == Enum.count(after_result)
+    
+    tx_id_query = [
+      :find, Db.q?(:tx), :where, [Db.blank, Db.doc, "A person's address", Db.q?(:tx)]
+    ]
+    {:ok, tx_id_response} = Db.q(DatomicGenServer, tx_id_query)
+
+    # MapSet contains a list. When we do to_list it becomes a list of lists
+    tx_id = tx_id_response |> MapSet.to_list |> hd |> hd
+    
+    {:ok, before_result2} = Db.q(DatomicGenServer, query, 
+      [Db.as_of(tx_id - 1), "A person's address"]
+    ) 
+    assert 0 == Enum.count(before_result2)
+    
+    {:ok, after_result2} = Db.q(DatomicGenServer, query, 
+      [Db.as_of(tx_id), "A person's address"]
+    ) 
+    assert 1 == Enum.count(after_result2)
+  end
+
   test "can ask for an entity" do
     data_to_add = [%{ 
         Db.id => Db.dbid(Db.schema_partition),
@@ -117,7 +178,7 @@ defmodule DatomicGenServer.DbTest do
     query = [:find, Db.q?(:e), Db.q?(:ident), 
              :where, [Db.q?(:e), :"db/doc", "A business's name"],
                      [Db.q?(:e), Db.ident, Db.q?(:ident)]]
-    {:ok, query_result} = Db.q(DatomicGenServer, query, [{:response_converter, converter}])
+    {:ok, query_result} = Db.q(DatomicGenServer, query, [], [{:response_converter, converter}])
     [%TestQueryResponse{id: entity_id, identity: :"business/name"}] = MapSet.to_list(query_result)
     assert is_integer(entity_id)
   end
@@ -166,7 +227,7 @@ defmodule DatomicGenServer.DbTest do
     assert Regex.match?(~r/Exception/, transaction_result)
   end
   
-  # TODO Add tests that use implicit/inS, bindings and find specifications,
+  # TODO Add tests that use inS, history, bindings and find specifications,
   # and clauses.
   
 end

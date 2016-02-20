@@ -151,10 +151,17 @@ defmodule DatomicGenServer do
       => {:ok, "\#{}\\n"}
       
   """
-  @spec q(GenServer.server, String.t, [send_option]) :: datomic_result
-  def q(server_identifier, edn_str, options \\ []) do
+  @spec q(GenServer.server, String.t, [String.t], [send_option]) :: datomic_result
+  def q(server_identifier, edn_str, bindings_edn \\ [], options \\ []) do
+    # Note that clojure-erltastic sends an empty list to Clojure as nil. This 
+    # interferes with wait_for_response - if an error comes back it expects to
+    # find the original message, but Clojure will return the original message as
+    # having a nil where we are waiting for the one we sent, which contains an
+    # empty list. To protect against this situation we never send empty lists to
+    # Clojure; only nil.
+    bindings = if bindings_edn && ! Enum.empty?(bindings_edn) do bindings_edn else nil end
     msg_unique_id = :erlang.unique_integer([:monotonic])
-    call_server(server_identifier, {:q, msg_unique_id, edn_str}, options)
+    call_server(server_identifier, {:q, msg_unique_id, edn_str, bindings}, options)
   end
   
   @doc """
@@ -402,7 +409,6 @@ defmodule DatomicGenServer do
     port = state.port
     {datomic_operation, this_msg_timeout} = message
     message_timeout = this_msg_timeout || state.message_wait_until_crash
-
     send(port, {self, {:command, :erlang.term_to_binary(datomic_operation)}})
     response = wait_for_reply(port, datomic_operation, message_timeout, this_msg_timeout, state.message_wait_until_crash)
     {:reply, response, state}
