@@ -68,7 +68,7 @@
   ;; TODO Figure out a better way to handle logging
   (let [logger-fn (fn [& args] nil)]
     (run-migrations connection migration-path logger-fn)
-    ; run-migrations calls doseq, which returns nil, so migrate does not supply a db-after
+    ; run-migrations calls doseq, which returns nil, so migrate does not supply a db-after.
     {:db-after (deref (datomic/sync connection) migration-timeout-ms nil)}))
 
 (defn- seed [db-url connection migration-path seed-data-resource-path]
@@ -97,7 +97,7 @@
             {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
       [:ping] {:db database :result [:ok :ping]}
       [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
-      [:exit] (do (datomic/shutdown true) nil)
+      [:exit] (do (datomic/shutdown true) nil) ; Shuts down Clojure resources as part of JVM shutdown
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
     (catch Exception e 
       (let [response {:db database :result [:error message e]}]

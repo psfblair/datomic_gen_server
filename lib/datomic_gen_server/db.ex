@@ -188,6 +188,18 @@ defmodule DatomicGenServer.Db do
   The first parameter to this function is the pid or alias of the GenServer process; 
   the second is the query. 
   
+  The optional third parameter is a list of bindings for the data sources in the 
+  query, passed to the `inputs` argument of the Datomic `q` function. **IMPORTANT:** 
+  These bindings are converted to edn strings which are read back in the Clojure 
+  peer and then passed to Clojure `eval`. Since any arbitrary Clojure forms that 
+  are passed in are evaluated, **you must be particularly careful that the bindings 
+  are sanitized** and that you are not passing anything in `{:list, [...]}` 
+  expressions that you don't control.
+  
+  Bindings may include `datomic_gen_server.peer/*db*` for the current database
+  (or the `db` shortcut below), as well as the forms produced by `as_of` and
+  `since` below. These accept transaction times or transaction IDs.
+  
   The options keyword list may include a `:client_timeout` option that specifies 
   the milliseconds timeout passed to `GenServer.call`, and a `:message_timeout` 
   option that specifies how long the GenServer should wait for a response before 
