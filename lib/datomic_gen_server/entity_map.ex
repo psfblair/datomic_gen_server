@@ -109,35 +109,7 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  @spec new_record_for(term, term, term, MapSet.t, boolean) :: map
-  defp new_record_for(entity_id, attr, value, cardinality_many, include_entity_id?) do
-    new_record = add_attribute_value(%{}, attr, value, cardinality_many)
-    if include_entity_id? do 
-      add_attribute_value(new_record, e_key, entity_id, cardinality_many) 
-    else 
-      new_record 
-    end
-  end
-  
-  # TODO You can pass in a nil value or an empty collection to remove a key from 
-  # the map (if it's not a struct) or to turn the value to nil/empty if it is a
-  # struct. Datomic datoms won't have these values so it's ok.
-  # TODO If all the attribute keys have been removed from the map, or if all the
-  # fields on a struct are nil or empty, remove it from the entity map.
-  defp remove_attribute_value(attr_map, attr, value) do
-    old_value = Map.get(attr_map, attr)
-    if ! Map.get(attr_map, :"__struct__") && value == old_value do
-      Map.delete(attr_map, attr)
-    else
-      new_value = case old_value do
-        %MapSet{} -> MapSet.delete(value)
-        val when val == value -> nil
-        val -> val
-      end
-      Map.put(attr_map, attr, new_value)
-    end
-  end
-  
+  @spec add_value_to_set(MapSet.t, MapSet.t | list | term ) :: MapSet.t
   defp merge_value_with_set(set, value) do
     if set do 
       add_value_to_set(set, value)
@@ -146,6 +118,7 @@ defmodule DatomicGenServer.EntityMap do
     end    
   end
   
+  @spec add_value_to_set(MapSet.t, MapSet.t | list | term ) :: MapSet.t
   defp add_value_to_set(set, value) do
     case value do
       %MapSet{} -> MapSet.union(set, value) 
@@ -155,6 +128,7 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
+  @spec new_set_from_value(term) :: MapSet.t
   defp new_set_from_value(value) do
     case value do
       %MapSet{} -> value 
@@ -162,6 +136,16 @@ defmodule DatomicGenServer.EntityMap do
       [] -> MapSet.new()
       _ -> MapSet.new([value])
     end    
+  end
+
+  @spec new_record_for(term, term, term, MapSet.t, boolean) :: map
+  defp new_record_for(entity_id, attr, value, cardinality_many, include_entity_id?) do
+    new_record = add_attribute_value(%{}, attr, value, cardinality_many)
+    if include_entity_id? do 
+      add_attribute_value(new_record, e_key, entity_id, cardinality_many) 
+    else 
+      new_record 
+    end
   end
   
   # A record is a map of attribute names to values. One of those attribute keys 
@@ -241,6 +225,25 @@ defmodule DatomicGenServer.EntityMap do
     %__MODULE__{}
   end
   
+  # TODO You can pass in a nil value or an empty collection to remove a key from 
+  # the map (if it's not a struct) or to turn the value to nil/empty if it is a
+  # struct. Datomic datoms won't have these values so it's ok.
+  # TODO If all the attribute keys have been removed from the map, or if all the
+  # fields on a struct are nil or empty, remove it from the entity map.
+  defp remove_attribute_value(attr_map, attr, value) do
+    old_value = Map.get(attr_map, attr)
+    if ! Map.get(attr_map, :"__struct__") && value == old_value do
+      Map.delete(attr_map, attr)
+    else
+      new_value = case old_value do
+        %MapSet{} -> MapSet.delete(value)
+        val when val == value -> nil
+        val -> val
+      end
+      Map.put(attr_map, attr, new_value)
+    end
+  end
+
   # A record is a map of attribute names to values. One of those attribute keys 
   # must uniquely identify the entity to which the attributes pertain. This 
   # attribute should be passed to the function as the third argument.
