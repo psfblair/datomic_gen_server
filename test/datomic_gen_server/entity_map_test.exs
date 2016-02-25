@@ -18,16 +18,20 @@ defmodule EntityMapTest do
     assert new_map == new_map2
   end
   
-  test "creates a new EntityMap with a list of datoms" do
+  test "creates a new EntityMap with a list of datoms, which may contain entities of different types" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
     d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
     d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
     d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+    d5 = %Datom{e: 2, a: :attr4, v: :value3, tx: 0, added: true}
+    d6 = %Datom{e: 2, a: :attr5, v: :value5, tx: 0, added: true}
     
     expected_inner_map = %{
       0 => %{"datom/e": 0, attr1: :value, attr2: :value2},
-      1 => %{"datom/e": 1, attr2: :value3}
+      1 => %{"datom/e": 1, attr2: :value3},
+      2 => %{"datom/e": 2, attr4: :value3, attr5: :value5}
     }
+    
     expected_entity_map = %EntityMap{
       inner_map: expected_inner_map,
       index_by: nil,
@@ -35,7 +39,7 @@ defmodule EntityMapTest do
       aggregator: &EntityMap.default_aggregator/1
     }
     
-    actual = EntityMap.new([d1, d2, d3, d4])
+    actual = EntityMap.new([d1, d2, d3, d4, d5, d6])
     
     assert actual.inner_map == expected_entity_map.inner_map
     assert actual.index_by == expected_entity_map.index_by
