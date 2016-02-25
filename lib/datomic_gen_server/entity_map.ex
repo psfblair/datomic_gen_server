@@ -80,11 +80,11 @@ defmodule DatomicGenServer.EntityMap do
           entity_record = Map.get(acc, entity_id)
           updated_record = 
             if entity_record do
-              add_attribute(entity_record, datom.a, datom.v, cardinality_set)
+              add_attribute_value(entity_record, datom.a, datom.v, cardinality_set)
             else
-              new_record = add_attribute(%{}, datom.a, datom.v, cardinality_set)
+              new_record = add_attribute_value(%{}, datom.a, datom.v, cardinality_set)
               if include_entity_id? do 
-                add_attribute(new_record, e_key, entity_id, cardinality_set) 
+                add_attribute_value(new_record, e_key, entity_id, cardinality_set) 
               else 
                 new_record 
               end
@@ -93,13 +93,27 @@ defmodule DatomicGenServer.EntityMap do
        end)
   end
   
-  defp add_attribute(attr_map, attr, value, cardinality_many) do
+  defp add_attribute_value(attr_map, attr, value, cardinality_many) do
     if MapSet.member?(cardinality_many, attr) do
       prior_values = Map.get(attr_map, attr)
       new_value = merge_value_with_set(prior_values, value)
       Map.put(attr_map, attr, new_value)
     else
       Map.put(attr_map, attr, value)
+    end
+  end
+  
+  defp remove_attribute_value(attr_map, attr, value) do
+    old_value = Map.get(attr_map, attr)
+    if ! Map.get(attr_map, :"__struct__") && value == old_value do
+      Map.delete(attr_map, attr)
+    else
+      new_value = case old_value do
+        %MapSet{} -> MapSet.delete(value)
+        val when val == value -> nil
+        val -> val
+      end
+      Map.put(attr_map, attr, new_value)
     end
   end
   
@@ -140,8 +154,8 @@ defmodule DatomicGenServer.EntityMap do
   # it is listed as a cardinality many attribute, other values that are lists or sets will
   # be merged together. If it is not listed as a cardinality many attribute, then
   # successive values of a collection will overwrite the previous ones.
-  @spec new_r([map] | MapSet.t, [entity_map_option]) :: EntityMap.t
-  def new_r(record_maps_to_add, options \\ []) do
+  @spec from_records([map] | MapSet.t, [entity_map_option]) :: EntityMap.t
+  def from_records(record_maps_to_add, options \\ []) do
     unless options[:index_by] do raise(":index_by option required for new_r") end
     opts = set_defaults(options)
 
@@ -162,11 +176,25 @@ defmodule DatomicGenServer.EntityMap do
                              cardinality_many: opts[:cardinality_many], 
                              aggregator: opts[:aggregator]}
   end
+
+  # A row is a simple list of attribute values. The header parameter supplies
+  # the attribute names for these values. One of those attribute keys 
+  # must uniquely identify the entity to which the attributes pertain. This must
+  # be passed as an :index_by option
+  @spec from_rows([list] | MapSet.t, list, [entity_map_option]) :: EntityMap.t
+  def from_rows(rows_to_add, header, options \\ []) do
+    rows_to_add
+    |> rows_to_records(header)
+    |> from_records(options)    
+  end
   
-  #TODO - Also allow a Record to be just a list of values, plus a "header" of attribute names.
+  @spec rows_to_records([list] | MapSet.t, list) :: [map]
+  defp rows_to_records(rows, header) do
+    Enum.map(rows, fn(row) -> Enum.zip(header, row) |> Enum.into(%{})  end)
+  end
   
-  @spec new_t(DatomicTransaction.t, [entity_map_option]) :: EntityMap.t
-  def new_t(transaction, options \\ []) do
+  @spec from_transaction(DatomicTransaction.t, [entity_map_option]) :: EntityMap.t
+  def from_transaction(transaction, options \\ []) do
     new(transaction.added_datoms, options)
   end
   

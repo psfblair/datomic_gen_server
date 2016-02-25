@@ -156,14 +156,14 @@ defmodule EntityMapTest do
       2 => %{id: 2, attr2: [:value4]},
     }
     
-    result = EntityMap.new_r([d1, d2, d3, d4], index_by: :id, cardinality_many: [:attr1])
+    result = EntityMap.from_records([d1, d2, d3, d4], index_by: :id, cardinality_many: [:attr1])
     
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:attr1])
     assert result.inner_map == expected_inner_map
   end
     
-  test "creates a new, indexed EntityMap of structs with a set of records, with a cardinality many attribute" do
+  test "creates a new, indexed EntityMap of structs with a list of records, with a cardinality many attribute" do
     d1 = %{identifier: :bill_smith , name: "Bill Smith", age: 32}
     d2 = %{identifier: :bill_smith, name: "William Smith", age: 32}
     d3 = %{identifier: :karina_jones, name: "Karina Jones", age: 64}
@@ -182,7 +182,7 @@ defmodule EntityMapTest do
       :hartley_stewart => %TestPerson{id: :hartley_stewart, names: MapSet.new(["Hartley Stewart"]), age: 44}
     }
 
-    result = EntityMap.new_r([d1, d2, d3, d4, d5], 
+    result = EntityMap.from_records([d1, d2, d3, d4, d5], 
               cardinality_many: [:name], index_by: :identifier, aggregator: aggregator)
     
     assert result.index_by == :identifier
@@ -190,6 +190,31 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
   end
   
+  # A 
+  test "creates a new EntityMap with a set of rows and a header" do
+    d1 = [:bill_smith, "Bill Smith", 32]
+    d2 = [:bill_smith, "William Smith", 32]
+    d3 = [:karina_jones, "Karina Jones", 64]
+    d4 = [:jim_stewart, "Jim Stewart", 23]
+    d5 = [:hartley_stewart, "Hartley Stewart", 44]
+    
+    header = [:identifier, :name, :age]
+    records = MapSet.new([d1, d2, d3, d4, d5])
+    
+    expected_inner_map = %{
+      :bill_smith => %{identifier: :bill_smith, name: MapSet.new(["Bill Smith", "William Smith"]), age: 32},
+      :karina_jones => %{identifier: :karina_jones, name: MapSet.new(["Karina Jones"]), age: 64},
+      :jim_stewart => %{identifier: :jim_stewart, name: MapSet.new(["Jim Stewart"]), age: 23},
+      :hartley_stewart => %{identifier: :hartley_stewart, name: MapSet.new(["Hartley Stewart"]), age: 44}
+    }
+
+    result = EntityMap.from_rows(records, header, cardinality_many: [:name], index_by: :identifier)
+    
+    assert result.index_by == :identifier
+    assert result.cardinality_many == MapSet.new([:name])
+    assert result.inner_map == expected_inner_map
+  end
+
   test "creates a new, indexed EntityMap of structs from a Datomic transaction, with a cardinality many attribute" do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
@@ -228,7 +253,7 @@ defmodule EntityMapTest do
       :jim_stewart => %TestPerson{id: :jim_stewart, names: MapSet.new(["Jim Stewart"]), age: nil}
     }
     
-    result = EntityMap.new_t(transaction, 
+    result = EntityMap.from_transaction(transaction, 
               cardinality_many: [:name], index_by: :id, aggregator: aggregator)
     
     assert result.index_by == :id
