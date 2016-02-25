@@ -157,24 +157,6 @@ defmodule DatomicGenServer.Db do
                                 :"tx-data" => [datom_map], 
                                 :tempids => %{integer => integer}}
   
-  defmodule DatomicTransaction do
-    defstruct basis_t_before: 0, 
-              basis_t_after: 0, 
-              added_datoms: [], 
-              retracted_datoms: [], 
-              tempids: %{} 
-    @type t :: %DatomicTransaction{basis_t_before: integer, 
-                                   basis_t_after: integer, 
-                                   added_datoms: [Datom.t], 
-                                   retracted_datoms: [Datom.t], 
-                                   tempids: %{integer => integer}}
-  end
-  
-  defmodule Datom do
-    defstruct a: 0, e: 0, v: [], tx: %{}, added: false
-    @type t :: %Datom{e: integer, a: atom, v: term, tx: integer, added: boolean}
-  end
-
 ############################# INTERFACE FUNCTIONS  ############################
 # TODO Rest API allows for limit and offset on query; this is implemented as
 # a call to take and drop on the result set, but we would probably prefer to
