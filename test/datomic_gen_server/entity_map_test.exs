@@ -266,62 +266,62 @@ defmodule EntityMapTest do
     assert result.aggregator == aggregator
   end
   
-  # test "updates an empty EntityMap with datoms" do
-  #   d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
-  #   d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
-  #   d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
-  #   d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
-  #   d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
-  #   d6 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
-  #   d7 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: false}
-  #   d8 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
-  #   
-  #   added_datoms = [d1, d2, d4, d5]
-  #   retracted_datoms = [d3, d6, d7, d8]
-  #   
-  #   empty_map = EntityMap.new()
-  #   
-  #   expected_inner_map = %{
-  #     0 => %{"datom/e": 0, name: "Bill Smith", age: 32},
-  #     1 => %{"datom/e": 1, age: 64},
-  #     2 => %{"datom/e": 2, name: "Jim Stewart"}
-  #   }
-  #   
-  #   result = EntityMap.update(empty_map, retracted_datoms, added_datoms)
-  #   
-  #   assert result.index_by == nil
-  #   assert result.inner_map == expected_inner_map    
-  # end
-  # 
-  # test "updates an EntityMap with datoms" do
-  #   d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
-  #   d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
-  #   
-  #   initial_map = EntityMap.new([d1, d2])
-  #   
-  #   d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
-  #   d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
-  #   d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
-  #   d6 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
-  #   d7 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: false}
-  #   d8 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
-  #   d9 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
-  #   d10 = %Datom{e: 0, a: :age, v: 63, tx: 0, added: true}
-  #   
-  #   added_datoms = [d4, d5, d10]
-  #   retracted_datoms = [d3, d6, d7, d8, d9]
-  #   
-  #   expected_inner_map = %{
-  #     0 => %{"datom/e": 0, name: "Bill Smith", age: 63},
-  #     1 => %{"datom/e": 1, age: 64},
-  #     2 => %{"datom/e": 2, name: "Jim Stewart"}
-  #   }
-  #   
-  #   result = EntityMap.update(initial_map, retracted_datoms, added_datoms)
-  #   
-  #   assert result.index_by == nil
-  #   assert result.inner_map == expected_inner_map        
-  # end
+  test "updates an empty EntityMap with datoms" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
+    d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
+    d6 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
+    d7 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: false}
+    d8 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
+    
+    added_datoms = [d1, d2, d4, d5]
+    retracted_datoms = [d3, d6, d7, d8]
+    
+    empty_map = EntityMap.new()
+    
+    expected_inner_map = %{
+      0 => %{"datom/e": 0, name: "Bill Smith", age: 32},
+      1 => %{"datom/e": 1, age: 64},
+      2 => %{"datom/e": 2, name: "Jim Stewart"}
+    }
+    
+    result = EntityMap.update(empty_map, retracted_datoms, added_datoms)
+    
+    assert result.index_by == nil
+    assert result.inner_map == expected_inner_map    
+  end
+  
+  test "updates an EntityMap with datoms" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    
+    initial_map = EntityMap.new([d1, d2])
+    
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
+    d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
+    d6 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
+    d7 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: false}
+    d8 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
+    d9 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
+    d10 = %Datom{e: 0, a: :age, v: 63, tx: 0, added: true}
+    
+    added_datoms = [d4, d5, d10]
+    retracted_datoms = [d3, d6, d7, d8, d9]
+    
+    expected_inner_map = %{
+      0 => %{"datom/e": 0, name: "Bill Smith", age: 63},
+      1 => %{"datom/e": 1, age: 64},
+      2 => %{"datom/e": 2, name: "Jim Stewart"}
+    }
+    
+    result = EntityMap.update(initial_map, retracted_datoms, added_datoms)
+    
+    assert result.index_by == nil
+    assert result.inner_map == expected_inner_map        
+  end
   
   test "updating an EntityMap with datoms preserves indexing and aggregation" do
     

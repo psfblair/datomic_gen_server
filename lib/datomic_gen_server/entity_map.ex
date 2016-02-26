@@ -65,15 +65,14 @@ defmodule DatomicGenServer.EntityMap do
     inner_map = 
       datoms_to_add
       |> Enum.filter(fn(datom) -> datom.added end)      
-      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], true)
+      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], include_entity_id? = true)
+      |> index_if_necessary(opts[:index_by])
     
     entity_map = 
       %__MODULE__{inner_map: inner_map, 
                   index_by: opts[:index_by], 
                   cardinality_many: opts[:cardinality_many], 
                   aggregator: opts[:aggregator]}
-
-    if opts[:index_by] do index_by(entity_map, opts[:index_by]) else entity_map end
   end
   
   @spec fold_into_aggregated_map([DataTuple.t], MapSet.t, aggregator, boolean) :: map
@@ -148,6 +147,15 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
+  @spec index_if_necessary(map, term) :: map
+  defp index_if_necessary(entity_mapping, attribute) do
+    if attribute do 
+      index_map_by(entity_mapping, attribute) 
+    else 
+      entity_mapping 
+    end
+  end
+  
   # A record is a map of attribute names to values. One of those attribute keys 
   # must uniquely identify the entity to which the attributes pertain. This must
   # be passed as an :index_by option
@@ -172,7 +180,7 @@ defmodule DatomicGenServer.EntityMap do
            end)
          end)
       |> Enum.concat
-      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], false)
+      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], include_entity_id? = false)
     
     entity_map = %__MODULE__{inner_map: inner_map, 
                              index_by: opts[:index_by], 
@@ -203,45 +211,146 @@ defmodule DatomicGenServer.EntityMap do
   
   @spec update(EntityMap.t, [Datom.t], [Datom.t]) :: EntityMap.t
   def update(entity_map, datoms_to_retract, datoms_to_add) do
-    datoms_to_retract
-    |> fold_into_aggregated_map(entity_map.cardinality_many, entity_map.aggregator, entity_map.index_by)
-    |> retract(entity_map)
-    # TODO retract them - preserve indexing! If it retracts a value that isn't in the map, leave the one in the map.
+    inner_map_with_retractions =
+      datoms_to_retract
+      |> fold_into_aggregated_map(entity_map.cardinality_many, entity_map.aggregator, include_entity_id? = true)
+      |> index_if_necessary(entity_map.index_by)
+      |> Enum.reduce(entity_map.inner_map, &retract/2)
     
-    datoms_added_by_entity_keyword = fold_into_record_map(datoms_to_add, entity_map.cardinality_many, entity_map.index_by)
-    # TODO add them - preserve indexing!
+    updated_inner_map = 
+      datoms_to_add
+      |> fold_into_aggregated_map(entity_map.cardinality_many, entity_map.aggregator, include_entity_id? = true)
+      |> index_if_necessary(entity_map.index_by)
+      |> Enum.reduce(inner_map_with_retractions, &add/2)
     
-    %__MODULE__{}
+    entity_map = %__MODULE__{inner_map: updated_inner_map, 
+                             index_by: entity_map.index_by, 
+                             cardinality_many: entity_map.cardinality_many, 
+                             aggregator: entity_map.aggregator}
   end
   
-  #TODO When retracting from an attribute with cardinality many, the value has
+  @spec add({term, map}, map) :: map
+  defp add({entity_id, attributes_to_add}, entity_map) do
+    existing_attributes = Map.get(entity_map, entity_id) || %{}
+    new_attr_map = Map.merge(existing_attributes, attributes_to_add)
+    Map.put(entity_map, entity_id, new_attr_map)
+  end
+  
+  @spec retract({term, map}, map) :: map
+  defp retract({entity_id, attributes_to_retract}, entity_map) do
+    existing_attributes = Map.get(entity_map, entity_id) || %{}
+    
+    new_attr_map = 
+      attributes_to_retract
+      |> Map.delete(:__struct__) 
+      |> Enum.reduce(existing_attributes, &remove_attribute_value/2)
+
+    if is_empty_entity(new_attr_map) || is_nil(entity_id) do
+      Map.delete(entity_map, entity_id)
+    else
+      Map.put(entity_map, entity_id, new_attr_map)
+    end
+  end
+  
+  # When retracting from an attribute with cardinality many, the value has
   # to be removed from the Set of values if it's one value, or the set of values
   # subtracted if it's a set of values.
-  @spec retract({term, map}, EntityMap.t) :: EntityMap.t
-  defp retract({entity_key, attributes}, entity_map) do
-    # If struct, get the underlying map.
-    attributes
-    |> Enum.map(fn(x) -> x end)
-    %__MODULE__{}
-  end
-  
-  # TODO You can pass in a nil value or an empty collection to remove a key from 
+  # You can pass in a nil value or an empty collection to remove a key from 
   # the map (if it's not a struct) or to turn the value to nil/empty if it is a
   # struct. Datomic datoms won't have these values so it's ok.
-  # TODO If all the attribute keys have been removed from the map, or if all the
-  # fields on a struct are nil or empty, remove it from the entity map.
-  defp remove_attribute_value(attr_map, attr, value) do
-    old_value = Map.get(attr_map, attr)
-    if ! Map.get(attr_map, :"__struct__") && value == old_value do
-      Map.delete(attr_map, attr)
+  defp remove_attribute_value({attr, value}, attr_map_or_struct) do
+    if Map.get(attr_map_or_struct, :"__struct__") do
+      # TODO TEST
+      remove_attribute_value_from_struct(attr_map_or_struct, attr, value)
     else
-      new_value = case old_value do
-        %MapSet{} -> MapSet.delete(value)
-        val when val == value -> nil
-        val -> val
-      end
-      Map.put(attr_map, attr, new_value)
+      # TODO TEST
+      remove_attribute_value_from_map(attr_map_or_struct, attr, value)
     end
+  end
+  
+  # Will only retract the value if the struct contains that value for that attribute.
+  # For structs, regardless of the current value of the attribute, you can also
+  # pass in a nil value or an empty collection to to turn the attribute value to 
+  # nil/empty. Datomic datoms won't ever come back with nil or [] values so it's
+  # ok to use these in a struct to signify empty values, since there's never nils
+  # in the database. (This is mainly for use with records.)
+  # When retracting from an attribute with cardinality many, the value is
+  # removed from the set of values if it's one value, or the set of values
+  # subtracted if it's a set of values.
+  defp remove_attribute_value_from_struct(attr_struct, attr, value) do
+    old_value = Map.get(attr_struct, attr) 
+    empty_set = MapSet.new()
+    
+    case {old_value, value} do
+      {_, nil} -> 
+        Map.put(attr_struct, attr, nil)
+      {_, []} -> 
+        Map.put(attr_struct, attr, nil)
+      {_, %MapSet{}} when value == empty_set ->
+        Map.put(attr_struct, attr, nil)
+      {old, val} when val == old -> 
+        Map.put(attr_struct, attr, nil)
+      {%MapSet{}, %MapSet{}} ->
+        Map.put(attr_struct, attr, MapSet.difference(old_value, value))
+      {%MapSet{}, [h|t]} -> 
+        Map.put(attr_struct, attr, MapSet.difference(old_value, MapSet.new(value)))
+      {%MapSet{}, _} -> 
+        Map.put(attr_struct, attr, MapSet.delete(old_value, value))
+      _ ->
+        attr_struct
+    end
+  end 
+    
+  # Will only retract the value if the map contains that value for that attribute.
+  # For maps, regardless of the current value of the attribute, you can also
+  # pass in a nil value or an empty collection to to remove the attribute key from 
+  # the map. Datomic datoms won't ever come back with nil or [] values so it's
+  # ok to use these in a struct to signify empty values, since there's never nils
+  # in the database. (This is mainly for use with records.)
+  # When retracting from an attribute with cardinality many, the value is
+  # removed from the Set of values if it's one value, or the set of values
+  # subtracted if it's a set of values.
+  defp remove_attribute_value_from_map(attr_map, attr, value) do
+    old_value = Map.get(attr_map, attr)
+    empty_set = MapSet.new()
+    
+    case {old_value, value} do
+      {_, nil} -> 
+        Map.delete(attr_map, attr)
+      {_, []} -> 
+        Map.delete(attr_map, attr)
+      {_, %MapSet{}} when value == empty_set ->
+        Map.delete(attr_map, attr)
+      {old, val} when val == old -> 
+        Map.delete(attr_map, attr)
+      {%MapSet{}, %MapSet{}} ->
+        Map.put(attr_map, attr, MapSet.difference(old_value, value))
+      {%MapSet{}, [h|t]} -> 
+        Map.put(attr_map, attr, MapSet.difference(old_value, MapSet.new(value)))
+      {%MapSet{}, _} -> 
+        Map.put(attr_map, attr, MapSet.delete(old_value, value))
+      _ ->
+        attr_map
+    end
+  end 
+  
+  # TODO Test
+  # If all the attribute keys have been removed from the map, or if all the fields
+  # on a struct are nil or empty, then it is "empty" and will be removed from the entity map.
+  @spec is_empty_entity(map) :: boolean
+  defp is_empty_entity(attr_map_or_struct) do
+    empty_set = MapSet.new()
+    
+    attr_map_or_struct 
+    |> Map.delete(:"__struct__")
+    |> Enum.all?(fn({k,v}) -> 
+        case v do
+          nil -> true
+          %MapSet{} when v == empty_set -> true
+          [] -> true
+          _ -> false
+        end
+       end)
   end
 
   # A record is a map of attribute names to values. One of those attribute keys 
@@ -269,15 +378,19 @@ defmodule DatomicGenServer.EntityMap do
   # in your struct. If a field in the datoms isn't in the struct, you can't index by it.
   @spec index_by(EntityMap.t, term) :: EntityMap.t
   def index_by(entity_map, attribute) do
-    new_inner = 
-      entity_map.inner_map
-      |> Enum.map(fn({_, attributes}) -> {Map.get(attributes, attribute), attributes} end)
-      |> Enum.into(%{})
+    new_inner = entity_map.inner_map |> index_map_by(attribute)
       
     %__MODULE__{inner_map: new_inner, 
                 index_by: attribute, 
                 cardinality_many: entity_map.cardinality_many,
                 aggregator: entity_map.aggregator}
+  end
+  
+  @spec index_map_by(map, term) :: map
+  defp index_map_by(entity_mapping, attribute) do
+    entity_mapping
+    |> Enum.map(fn({_, attributes}) -> {Map.get(attributes, attribute), attributes} end)
+    |> Enum.into(%{})
   end
   
   # Pass in a map and another map from keys to new keys.
