@@ -136,7 +136,6 @@ defmodule EntityMapTest do
 
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
-      nil => %TestPerson{id: nil, names: MapSet.new([]), age: 64},
       :jim_stewart => %TestPerson{id: :jim_stewart, names: MapSet.new(["Jim Stewart"]), age: nil}
     }
     
@@ -252,7 +251,6 @@ defmodule EntityMapTest do
 
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith", "William Smith"]), age: 32},
-      nil => %TestPerson{id: nil, names: MapSet.new(["Karina Jones"]), age: nil},
       :jim_stewart => %TestPerson{id: :jim_stewart, names: MapSet.new(["Jim Stewart"]), age: nil}
     }
     

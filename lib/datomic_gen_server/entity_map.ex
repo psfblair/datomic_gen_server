@@ -409,11 +409,13 @@ defmodule DatomicGenServer.EntityMap do
                 aggregator: entity_map.aggregator}
   end
   
+  # Removes nil key
   @spec index_map_by(map, term) :: map
   defp index_map_by(entity_mapping, attribute) do
     entity_mapping
     |> Enum.map(fn({_, attributes}) -> {Map.get(attributes, attribute), attributes} end)
     |> Enum.into(%{})
+    |> Map.delete(nil) 
   end
   
   # Pass in a map and another map from keys to new keys.
