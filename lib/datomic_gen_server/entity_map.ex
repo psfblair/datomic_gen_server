@@ -1,7 +1,7 @@
 defmodule DatomicGenServer.EntityMap do
   
-  defstruct inner_map: %{}, index_by: nil, cardinality_many: [], aggregator: &__MODULE__.identity/1
-  @type t :: %DatomicGenServer.EntityMap{inner_map: map, index_by: term, aggregator: (Datom.t -> term)}
+  defstruct raw_data: %{}, inner_map: %{}, index_by: nil, cardinality_many: [], aggregator: &__MODULE__.identity/1
+  @type t :: %DatomicGenServer.EntityMap{raw_data: map, inner_map: map, index_by: term, aggregator: (Datom.t -> term)}
   
   defmodule DataTuple do
     defstruct e: nil, a: 0, v: nil, added: false
@@ -62,36 +62,40 @@ defmodule DatomicGenServer.EntityMap do
   def new(datoms_to_add \\ [], options \\ []) do
     opts = set_defaults(options)
 
-    inner_map = 
+    raw_data_map = 
       datoms_to_add
-      |> Enum.filter(fn(datom) -> datom.added end)      
-      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], include_entity_id? = true)
+      |> Enum.filter(fn(datom) -> datom.added end)
+      |> fold_into_record_map(opts[:cardinality_many])
+      
+    inner_map =
+      raw_data_map
+      |> to_aggregated_map(opts[:aggregator])
       |> index_if_necessary(opts[:index_by])
     
     entity_map = 
-      %__MODULE__{inner_map: inner_map, 
+      %__MODULE__{raw_data: raw_data_map,
+                  inner_map: inner_map, 
                   index_by: opts[:index_by], 
                   cardinality_many: opts[:cardinality_many], 
                   aggregator: opts[:aggregator]}
   end
   
-  @spec fold_into_aggregated_map([DataTuple.t], MapSet.t, aggregator, boolean) :: map
-  defp fold_into_aggregated_map(datoms, cardinality_set, aggregator, include_entity_id?) do
-    datoms
-    |> fold_into_record_map(cardinality_set, include_entity_id?)
+  @spec to_aggregated_map(map, aggregator) :: map
+  defp to_aggregated_map(entities_by_id, aggregator) do
+    entities_by_id
     |> Enum.map(fn({entity_id, attr_map}) -> {entity_id, aggregator.(attr_map)} end)
     |> Enum.into(%{})  
   end
   
-  @spec fold_into_record_map([DataTuple.t], MapSet.t, boolean) :: map
-  defp fold_into_record_map(datoms, cardinality_set, include_entity_id?) do
+  @spec fold_into_record_map([DataTuple.t], MapSet.t) :: map
+  defp fold_into_record_map(datoms, cardinality_set) do
     List.foldl(datoms, %{}, 
       fn(datom, accumulator) -> 
         updated_record = 
           if existing_record = Map.get(accumulator, datom.e) do
             add_attribute_value(existing_record, datom.a, datom.v, cardinality_set)
           else
-            new_record_for(datom.e, datom.a, datom.v, cardinality_set, include_entity_id?)
+            new_record_for(datom.e, datom.a, datom.v, cardinality_set)
           end
         Map.put(accumulator, datom.e, updated_record)
       end)
@@ -137,14 +141,10 @@ defmodule DatomicGenServer.EntityMap do
     end    
   end
 
-  @spec new_record_for(term, term, term, MapSet.t, boolean) :: map
-  defp new_record_for(entity_id, attr, value, cardinality_many, include_entity_id?) do
+  @spec new_record_for(term, term, term, MapSet.t) :: map
+  defp new_record_for(entity_id, attr, value, cardinality_many) do
     new_record = add_attribute_value(%{}, attr, value, cardinality_many)
-    if include_entity_id? do 
-      add_attribute_value(new_record, e_key, entity_id, cardinality_many) 
-    else 
-      new_record 
-    end
+    add_attribute_value(new_record, e_key, entity_id, cardinality_many) 
   end
   
   @spec index_if_necessary(map, term) :: map
@@ -156,9 +156,9 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  # A record is a map of attribute names to values. One of those attribute keys 
-  # must uniquely identify the entity to which the attributes pertain. This must
-  # be passed as an :index_by option
+  # A record is a map of attribute names to values. One of those attribute keys must
+  # point to the entity primary key -- i.e., the same value that would appear
+  # in the `e` value of a corresponding datom.
   # If two records share the same identifier, records are merged. For cardinality/one
   # attributes this means that one value overwrites the other (this is non-deterministic).
   # For any cardinality/many attributes values that are not already sets are
@@ -167,36 +167,42 @@ defmodule DatomicGenServer.EntityMap do
   # it is listed as a cardinality many attribute, other values that are lists or sets will
   # be merged together. If it is not listed as a cardinality many attribute, then
   # successive values of a collection will overwrite the previous ones.
-  @spec from_records([map] | MapSet.t, [entity_map_option]) :: EntityMap.t
-  def from_records(record_maps_to_add, options \\ []) do
-    unless options[:index_by] do raise(":index_by option required for new_r") end
+  @spec from_records([map] | MapSet.t, term, [entity_map_option]) :: EntityMap.t
+  def from_records(record_maps_to_add, primary_key, options \\ []) do
     opts = set_defaults(options)
 
-    inner_map = 
+    raw_data_map =
       record_maps_to_add 
       |> Enum.map(fn(attr_map) -> 
-           Enum.map(attr_map, fn{attr, value} -> 
-             %DataTuple{e: attr_map[opts[:index_by]], a: attr, v: value, added: true}
+          entity_id = Map.get(attr_map, primary_key)
+          Enum.map(attr_map, fn{attr, value} -> 
+             %DataTuple{e: entity_id, a: attr, v: value, added: true}
            end)
          end)
       |> Enum.concat
-      |> fold_into_aggregated_map(opts[:cardinality_many], opts[:aggregator], include_entity_id? = false)
-    
-    entity_map = %__MODULE__{inner_map: inner_map, 
+      |> fold_into_record_map(opts[:cardinality_many])
+      
+    inner_map =
+      raw_data_map
+      |> to_aggregated_map(opts[:aggregator])
+      |> index_if_necessary(opts[:index_by])
+      
+    entity_map = %__MODULE__{raw_data: raw_data_map,
+                             inner_map: inner_map, 
                              index_by: opts[:index_by], 
                              cardinality_many: opts[:cardinality_many], 
                              aggregator: opts[:aggregator]}
   end
 
   # A row is a simple list of attribute values. The header parameter supplies
-  # the attribute names for these values. One of those attribute keys 
-  # must uniquely identify the entity to which the attributes pertain. This must
-  # be passed as an :index_by option
-  @spec from_rows([list] | MapSet.t, list, [entity_map_option]) :: EntityMap.t
-  def from_rows(rows_to_add, header, options \\ []) do
+  # the attribute names for these values. One of those attribute keys must
+  # point to the entity primary key -- i.e., the same value that would appear
+  # in the `e` value of a corresponding datom.
+  @spec from_rows([list] | MapSet.t, list, term, [entity_map_option]) :: EntityMap.t
+  def from_rows(rows_to_add, header, primary_key, options \\ []) do
     rows_to_add
     |> rows_to_records(header)
-    |> from_records(options)    
+    |> from_records(primary_key, options)    
   end
   
   @spec rows_to_records([list] | MapSet.t, list) :: [map]
@@ -209,21 +215,28 @@ defmodule DatomicGenServer.EntityMap do
     new(transaction.added_datoms, options)
   end
   
-  @spec update(EntityMap.t, [Datom.t], [Datom.t]) :: EntityMap.t
-  def update(entity_map, datoms_to_retract, datoms_to_add) do
-    inner_map_with_retractions =
+  @spec update(EntityMap.t, [Datom.t]) :: EntityMap.t
+  def update(entity_map, datoms_to_update) do
+    {datoms_to_add, datoms_to_retract} = 
+      Enum.partition(datoms_to_update, fn(datom) -> datom.added end)
+    
+    raw_data_map_with_retractions =
       datoms_to_retract
-      |> fold_into_aggregated_map(entity_map.cardinality_many, entity_map.aggregator, include_entity_id? = true)
-      |> index_if_necessary(entity_map.index_by)
-      |> Enum.reduce(entity_map.inner_map, &retract/2)
-    
-    updated_inner_map = 
+      |> fold_into_record_map(entity_map.cardinality_many)
+      |> Enum.reduce(entity_map.raw_data, &retract/2)
+      
+    raw_data_map_with_all_changes =
       datoms_to_add
-      |> fold_into_aggregated_map(entity_map.cardinality_many, entity_map.aggregator, include_entity_id? = true)
+      |> fold_into_record_map(entity_map.cardinality_many)
+      |> Enum.reduce(raw_data_map_with_retractions, &add/2)
+
+    updated_inner_map =
+      raw_data_map_with_all_changes
+      |> to_aggregated_map(entity_map.aggregator)
       |> index_if_necessary(entity_map.index_by)
-      |> Enum.reduce(inner_map_with_retractions, &add/2)
     
-    entity_map = %__MODULE__{inner_map: updated_inner_map, 
+    entity_map = %__MODULE__{raw_data: raw_data_map_with_all_changes,
+                             inner_map: updated_inner_map, 
                              index_by: entity_map.index_by, 
                              cardinality_many: entity_map.cardinality_many, 
                              aggregator: entity_map.aggregator}
@@ -245,7 +258,7 @@ defmodule DatomicGenServer.EntityMap do
       |> Map.delete(:__struct__) 
       |> Enum.reduce(existing_attributes, &remove_attribute_value/2)
 
-    if is_empty_entity(new_attr_map) || is_nil(entity_id) do
+    if is_empty_entity(new_attr_map) do
       Map.delete(entity_map, entity_id)
     else
       Map.put(entity_map, entity_id, new_attr_map)
@@ -280,13 +293,14 @@ defmodule DatomicGenServer.EntityMap do
   defp remove_attribute_value_from_struct(attr_struct, attr, value) do
     old_value = Map.get(attr_struct, attr) 
     empty_set = MapSet.new()
-    
+    set_of_nil = MapSet.new([nil])
+
     case {old_value, value} do
       {_, nil} -> 
         Map.put(attr_struct, attr, nil)
       {_, []} -> 
         Map.put(attr_struct, attr, nil)
-      {_, %MapSet{}} when value == empty_set ->
+      {_, %MapSet{}} when value == empty_set or value == set_of_nil ->
         Map.put(attr_struct, attr, nil)
       {old, val} when val == old -> 
         Map.put(attr_struct, attr, nil)
@@ -310,16 +324,22 @@ defmodule DatomicGenServer.EntityMap do
   # When retracting from an attribute with cardinality many, the value is
   # removed from the Set of values if it's one value, or the set of values
   # subtracted if it's a set of values.
+  # If the :"datom/e" key is in the map, we don't remove it. Other indexed
+  # attributes will be removed if they are in the map to be retracted.
   defp remove_attribute_value_from_map(attr_map, attr, value) do
+    attribute_is_datom_e = attr == e_key
     old_value = Map.get(attr_map, attr)
     empty_set = MapSet.new()
-    
+    set_of_nil = MapSet.new([nil])
+
     case {old_value, value} do
+      {_, _} when attribute_is_datom_e ->
+        attr_map    
       {_, nil} -> 
         Map.delete(attr_map, attr)
       {_, []} -> 
         Map.delete(attr_map, attr)
-      {_, %MapSet{}} when value == empty_set ->
+      {_, %MapSet{}} when value == empty_set or value == set_of_nil ->
         Map.delete(attr_map, attr)
       {old, val} when val == old -> 
         Map.delete(attr_map, attr)
@@ -337,12 +357,13 @@ defmodule DatomicGenServer.EntityMap do
   # TODO Test
   # If all the attribute keys have been removed from the map, or if all the fields
   # on a struct are nil or empty, then it is "empty" and will be removed from the entity map.
+  # If only the e_key is left, it's empty.
   @spec is_empty_entity(map) :: boolean
   defp is_empty_entity(attr_map_or_struct) do
     empty_set = MapSet.new()
-    
     attr_map_or_struct 
     |> Map.delete(:"__struct__")
+    |> Map.delete(e_key)          
     |> Enum.all?(fn({k,v}) -> 
         case v do
           nil -> true
