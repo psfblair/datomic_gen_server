@@ -500,6 +500,200 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map 
   end
   
+  test "In retracting a value in an EntityMap containing structs, an attribute is 
+        set to its default value when the value is equal to the old value" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+    
+    initial_map = EntityMap.new([d1, d2, d3, d4], aggregator: aggregator)
+
+    d5 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: false}
+    d6 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
+    d7 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
+    d8 = %Datom{e: 1, a: :age, v: 10, tx: 0, added: false}
+    
+    expected_inner_map = %{
+      1 => %TestPerson{id: 1, names: MapSet.new(), age: 64},
+    }
+    
+    result = EntityMap.update(initial_map, [d5, d6, d7, d8])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+  
+  test "In retracting a value in an EntityMap containing structs, an attribute is 
+        set to its default value when the passed-in value is a set or a list and 
+        contains the same elements as the old value" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+    
+    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, aggregator: aggregator)
+
+    d7 = %Datom{e: 0, a: :name, v: ["Bill Smith", "William Smith"], tx: 0, added: false}
+    d8 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
+    d9 = %Datom{e: 1, a: :name, v: MapSet.new(["Karina Jones"]), tx: 0, added: false}
+    
+    expected_inner_map = %{
+      1 => %TestPerson{id: 1, names: MapSet.new(["Karen Jones"]), age: 64},
+    }
+    
+    result = EntityMap.update(initial_map, [d7, d8, d9])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+  
+  test "In retracting a value in an EntityMap containing structs, an attribute is 
+        set to its default value when the value passed in is nil or empty" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
+    d6 = %Datom{e: 2, a: :age, v: 45, tx: 0, added: true}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+
+    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregator: aggregator)
+
+    d7 = %Datom{e: 0, a: :name, v: nil, tx: 0, added: false}
+    d8 = %Datom{e: 1, a: :name, v: MapSet.new([]), tx: 0, added: false}
+    d9 = %Datom{e: 2, a: :age, v: [], tx: 0, added: false}
+    
+    expected_inner_map = %{
+      0 => %TestPerson{id: 0, names: MapSet.new(), age: 32},
+      1 => %TestPerson{id: 1, names: MapSet.new(), age: 64},
+      2 => %TestPerson{id: 2, names: "Jim Stewart", age: nil},
+    }
+    
+    result = EntityMap.update(initial_map, [d7, d8, d9])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+  
+  test "In retracting a value in an EntityMap containing structs, an attribute is set to 
+        its default value when the value is nil or empty and the old value is a set" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+    
+    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, aggregator: aggregator)
+
+    d7 = %Datom{e: 0, a: :name, v: nil, tx: 0, added: false}
+    d8 = %Datom{e: 1, a: :name, v: [], tx: 0, added: false}
+    d9 = %Datom{e: 2, a: :name, v: MapSet.new([]), tx: 0, added: false}
+    
+    expected_inner_map = %{
+      #Empty entities are removed
+      1 => %TestPerson{id: 1, names: MapSet.new(), age: 64},
+    }
+    
+    result = EntityMap.update(initial_map, [d7, d8, d9])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+  
+  test "In retracting a value in an EntityMap containing structs, when the old value
+        is a set and the update value is a set or list, the new attribute value is
+        the old value less the elements of the update value" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+    
+    initial_map = EntityMap.new([d1, d2, d3, d4], 
+                    cardinality_many: :name, aggregator: aggregator)
+
+    d5 = %Datom{e: 0, a: :name, v: ["William Smith"], tx: 0, added: false}
+    d6 = %Datom{e: 1, a: :name, v: MapSet.new(["Karina Jones"]), tx: 0, added: false}
+    
+    expected_inner_map = %{
+      0 => %TestPerson{id: 0, names: MapSet.new(["Bill Smith"]), age: nil},
+      1 => %TestPerson{id: 1, names: MapSet.new(["Karen Jones"]), age: nil},
+    }
+    
+    result = EntityMap.update(initial_map, [d5, d6])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+  
+  test "In retracting a value in an EntityMap containing structs, when the old value
+        is a set and the update value is not a collection, the new attribute value
+        is the old value less the update value" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+
+    initial_map = EntityMap.new([d1, d2, d3, d4], 
+                    cardinality_many: :name, aggregator: aggregator)
+
+    d5 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: false}
+    d6 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
+    
+    expected_inner_map = %{
+      0 => %TestPerson{id: 0, names: MapSet.new(["Bill Smith"]), age: nil},
+      1 => %TestPerson{id: 1, names: MapSet.new(["Karen Jones"]), age: nil},
+    }
+    
+    result = EntityMap.update(initial_map, [d5, d6])
+    
+    assert result.inner_map == expected_inner_map 
+  end
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
   test "updates an EntityMap with records" do
     
   end

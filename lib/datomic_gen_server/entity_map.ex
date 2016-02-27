@@ -58,6 +58,8 @@ defmodule DatomicGenServer.EntityMap do
   # without that attribute will go into the map with the entity key `nil`.
   # On "new," Datoms that are not added are ignored. 
   # The inner map by default contains a field :"datom/e" for the entity ID.
+  # Cardinality many is the name of the _incoming_ attribute with cardinality many
+  # Index by is the name of the _aggregated_ attribute to index by.
   @spec new([Datom.t], [entity_map_option]) :: EntityMap.t
   def new(datoms_to_add \\ [], options \\ []) do
     opts = set_defaults(options)
