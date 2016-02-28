@@ -160,14 +160,14 @@ defmodule DatomicGenServer.EntityMap do
   defp remove_null_attributes_and_entities(map_of_maps) do
     map_of_maps
     |> Enum.map(fn({entity_id, attr_map}) -> {entity_id, remove_null_attributes(attr_map)} end)
-    |> Enum.filter(fn({entity_id, attr_map}) -> has_attributes?(attr_map) end)
+    |> Enum.filter(fn({_, attr_map}) -> has_attributes?(attr_map) end)
     |> Enum.into(%{})
   end
   
   @spec remove_null_attributes(map) :: map
   defp remove_null_attributes(attr_map) do
     attr_map
-    |> Enum.filter(fn({attr, val}) -> 
+    |> Enum.filter(fn({_, val}) -> 
         case val do 
           [] -> false 
           _ -> true
@@ -214,19 +214,16 @@ defmodule DatomicGenServer.EntityMap do
   # ATTRIBUTES. CARDINALITY MANY IS A NAME OF AN INCOMING ATTRIBUTE  
   @spec from_records([map] | MapSet.t, term, [entity_map_option]) :: EntityMap.t
   def from_records(record_maps_to_add, primary_key, options \\ []) do
-    opts = set_defaults(options)
-
-    data_tuples_to_add =
-      record_maps_to_add 
-      |> Enum.map(fn(attr_map) -> 
-          entity_id = Map.get(attr_map, primary_key)
-          Enum.map(attr_map, fn{attr, value} -> 
-             %DataTuple{e: entity_id, a: attr, v: value, added: true}
-           end)
+    
+    record_maps_to_add 
+    |> Enum.map(fn(attr_map) -> 
+        entity_id = Map.get(attr_map, primary_key)
+        Enum.map(attr_map, fn{attr, value} -> 
+           %DataTuple{e: entity_id, a: attr, v: value, added: true}
          end)
-      |> Enum.concat
-      
-    new(data_tuples_to_add, options)
+       end)
+    |> Enum.concat
+    |> new(options)
   end
 
   # A row is a simple list of attribute values. The header parameter supplies
@@ -280,29 +277,6 @@ defmodule DatomicGenServer.EntityMap do
                 cardinality_many: entity_map.cardinality_many, 
                 aggregator: entity_map.aggregator}
   end
-  
-  @spec add({term, map}, map) :: map
-  defp add({entity_id, attributes_to_add}, entity_map) do
-    
-    existing_attributes = Map.get(entity_map, entity_id) || %{}
-    
-    # If the value to add is an empty set or nil, it has already been changed
-    # to the null marker [].
-    merge_fn = fn(_, old_value, new_value) ->      
-      case {old_value, new_value} do
-        {[], _} -> []
-        {_, []} -> []
-        {%MapSet{}, %MapSet{}} -> MapSet.union(old_value, new_value)
-        {%MapSet{}, [_|_]} -> MapSet.union(old_value, MapSet.new(new_value))
-        {%MapSet{}, _} -> MapSet.put(old_value, new_value)    
-        _ -> new_value
-      end
-    end
-    
-    new_attr_map = Map.merge(existing_attributes, attributes_to_add, merge_fn)
-      
-    Map.put(entity_map, entity_id, new_attr_map)
-  end
     
   @spec retract({term, map}, map) :: map
   defp retract({entity_id, attributes_to_retract}, entity_map) do
@@ -354,7 +328,29 @@ defmodule DatomicGenServer.EntityMap do
         attr_map
     end
   end 
-
+  
+  @spec add({term, map}, map) :: map
+  defp add({entity_id, attributes_to_add}, entity_map) do
+    
+    existing_attributes = Map.get(entity_map, entity_id) || %{}
+    
+    # If the value to add is an empty set or nil, it has already been changed
+    # to the null marker [].
+    merge_fn = fn(_, old_value, new_value) ->      
+      case {old_value, new_value} do
+        {[], _} -> []
+        {_, []} -> []
+        {%MapSet{}, %MapSet{}} -> MapSet.union(old_value, new_value)
+        {%MapSet{}, [_|_]} -> MapSet.union(old_value, MapSet.new(new_value))
+        {%MapSet{}, _} -> MapSet.put(old_value, new_value)    
+        _ -> new_value
+      end
+    end
+    
+    new_attr_map = Map.merge(existing_attributes, attributes_to_add, merge_fn)
+      
+    Map.put(entity_map, entity_id, new_attr_map)
+  end
 
   # A record is a map of attribute names to values. One of those attribute keys 
   # must point to the entity primary key -- i.e., the same value that would appear
@@ -393,6 +389,12 @@ defmodule DatomicGenServer.EntityMap do
       |> Enum.concat  
       |> Enum.concat
     update(entity_map, data_tuples)
+  end
+  
+  @spec update_from_rows(EntityMap.t, [list] | MapSet.t, list, term) :: EntityMap.t
+  def update_from_rows(entity_map, rows_to_add, header, primary_key) do
+    records_to_add = rows_to_records(rows_to_add, header)
+    update_from_records(entity_map, records_to_add, primary_key)
   end
   
   @spec update_t(EntityMap.t, DatomicTransaction.t) :: EntityMap.t

@@ -978,10 +978,41 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
   end
   
-  # test "updating an EntityMap with rows preserves indexing and aggregation" do
-  #   
-  # end
-  # 
+  test "updating an EntityMap with rows preserves indexing and aggregation" do
+    header = [:eid, :unique_name, :name, :age]
+    
+    d1 = [1, :bill_smith, "Bill Smith", 32]
+    d2 = [1, :bill_smith, "William Smith", 32]
+    d3 = [2, :karina_jones, ["Karina Jones", "Karen Jones"], 64]
+    d4 = [3, :jim_stewart, "Jim Stewart", 23]
+    d5 = [4, :hartley_stewart, MapSet.new(["Hartley Stewart"]), 44]
+    
+    aggregator = 
+      fn(attr_map) -> 
+        %TestPerson{id: attr_map[:unique_name], names: attr_map[:name], age: attr_map[:age]} 
+      end
+      
+    initial_map = EntityMap.from_rows([d1, d2, d3, d4, d5], header, :eid, 
+                    cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+  
+    d6 = [1, :bill_smith, "Bill Smith", 33]
+    d7 = [2, :karina_jones, MapSet.new(["Karen Jones"]), 64]
+    d8 = [3, nil, [], nil]
+    d9 = [4, :hartley_stewart, ["Hartley Stewart", "H. Stewart"], 44]
+    
+    expected_inner_map = %{
+      :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 33},
+      :karina_jones => %TestPerson{id: :karina_jones, names: MapSet.new(["Karen Jones"]), age: 64},
+      :hartley_stewart => %TestPerson{id: :hartley_stewart, names: MapSet.new(["Hartley Stewart", "H. Stewart"]), age: 44}
+    }
+    
+    result = EntityMap.update_from_rows(initial_map, [d6, d7, d8, d9], header, :eid)
+    
+    assert result.index_by == :id
+    assert result.cardinality_many == MapSet.new([:name])
+    assert result.inner_map == expected_inner_map
+  end
+  
   # test "updates an EntityMap with a transaction" do
   #   
   # end
@@ -989,16 +1020,5 @@ defmodule EntityMapTest do
   # test "updating an EntityMap with a transaction preserves indexing and aggregation" do
   #   
   # end
-  # 
-  # test "updating with a second added value for an attribute makes the attribute value a collection" do
-  # end
-  # 
-  # test "retracting a value for an attribute whose value is a collection removes the value from the collection" do
-  #   
-  # end
-  # 
-  # test "any value that a record contains for an attribute replaces the value in the entity map" do
-  # end
-  
 
 end
