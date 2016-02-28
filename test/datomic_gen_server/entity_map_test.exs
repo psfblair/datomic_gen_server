@@ -954,7 +954,8 @@ defmodule EntityMapTest do
     
     aggregator = 
       fn(attr_map) -> 
-        %TestPerson{id: attr_map[:unique_name], names: attr_map[:name], age: attr_map[:age]} 
+        struct_map = EntityMap.rename_keys(attr_map, %{unique_name: :id, name: :names})
+        struct(TestPerson, struct_map)
       end
       
     initial_map = EntityMap.from_records([d1, d2, d3, d4, d5], :eid, 
@@ -989,7 +990,8 @@ defmodule EntityMapTest do
     
     aggregator = 
       fn(attr_map) -> 
-        %TestPerson{id: attr_map[:unique_name], names: attr_map[:name], age: attr_map[:age]} 
+        struct_map = EntityMap.rename_keys(attr_map, %{unique_name: :id, name: :names})
+        struct(TestPerson, struct_map)
       end
       
     initial_map = EntityMap.from_rows([d1, d2, d3, d4, d5], header, :eid, 
@@ -1013,12 +1015,52 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
   end
   
-  # test "updates an EntityMap with a transaction" do
-  #   
-  # end
-  # 
-  # test "updating an EntityMap with a transaction preserves indexing and aggregation" do
-  #   
-  # end
+  test "updates an EntityMap with a transaction, preserving indexing and aggregation" do
+    d1 = %{eid: 0, identifier: :bill_smith , name: "Bill Smith", age: 32}
+    d2 = %{eid: 0, identifier: :bill_smith, name: "William Smith", age: 32}
+    d3 = %{eid: 1, identifier: :karina_jones, name: ["Karina Jones", "Karen Jones"], age: 64}
+    d4 = %{eid: 2, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
+    
+    aggregator = 
+      fn(attr_map) -> 
+        struct_map = EntityMap.rename_keys(attr_map, %{identifier: :id, name: :names})
+        struct(TestPerson, struct_map)
+      end
+      
+    initial_map = EntityMap.from_records([d1, d2, d3, d4], :eid, 
+                    cardinality_many: [:name], index_by: :id, aggregator: aggregator)
 
+    d5 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: false}
+    d6 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: false}
+    d7 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
+    d8 = %Datom{e: 2, a: :identifier, v: nil, tx: 0, added: false}
+    d9 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: false}
+
+    d10 = %Datom{e: 1, a: :name, v: "K. Jones", tx: 0, added: true}
+    d11 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: true}
+    d12 = %Datom{e: 3, a: :name, v: "H. Stewart", tx: 0, added: true}
+    d13 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: true}
+    d14 = %Datom{e: 3, a: :identifier, v: :hartley_stewart, tx: 0, added: true}
+    
+    transaction = %DatomicTransaction{
+      basis_t_before: 1000, 
+      basis_t_after: 1001, 
+      retracted_datoms: [d5, d6, d7, d8, d9], 
+      added_datoms: [d10, d11, d12, d13, d14], 
+      tempids: %{-1432323 => 64}
+    }
+      
+    result = EntityMap.update_from_transaction(initial_map, transaction)
+  
+    expected_inner_map = %{
+      :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
+      :karina_jones => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones", "K. Jones"]), age: 64},
+      :hartley_stewart => %TestPerson{id: :hartley_stewart, names: MapSet.new(["Hartley Stewart", "H. Stewart"]), age: 44}
+    }
+    
+    assert result.inner_map == expected_inner_map
+    assert result.index_by == :id
+    assert result.cardinality_many == MapSet.new([:name])
+    assert result.aggregator == aggregator
+  end
 end

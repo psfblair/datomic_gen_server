@@ -397,9 +397,10 @@ defmodule DatomicGenServer.EntityMap do
     update_from_records(entity_map, records_to_add, primary_key)
   end
   
-  @spec update_t(EntityMap.t, DatomicTransaction.t) :: EntityMap.t
-  def update_t(entity_map, {datoms_to_retract, datoms_to_add}) do
-    %__MODULE__{}
+  @spec update_from_transaction(EntityMap.t, DatomicTransaction.t) :: EntityMap.t
+  def update_from_transaction(entity_map, transaction) do
+    all_datoms = transaction.retracted_datoms ++ transaction.added_datoms
+    update(entity_map, all_datoms)
   end
   
   # Creates a new EntityMap whose keys are values of a certain attribute or 
