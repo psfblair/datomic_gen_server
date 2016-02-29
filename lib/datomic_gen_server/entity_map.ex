@@ -11,17 +11,14 @@ defmodule DatomicGenServer.EntityMap do
   @spec e_key :: :"datom/e"
   def e_key, do: :"datom/e"
   
-  @spec identity(term) :: term
-  def identity(x), do: x
-  
-  @type aggregator :: (Datom.t -> term)
+  @type aggregator :: {module, map}
   @type entity_map_option :: {atom, term} | {atom, MapSet.t} | {atom, aggregator}
   
   @spec set_defaults([entity_map_option]) :: [entity_map_option]
   def set_defaults(options) do
     [ index_by: options[:index_by],
       cardinality_many: to_set(options[:cardinality_many]),
-      aggregator: options[:aggregator] || &identity/1
+      aggregator: to_aggregator(options[:aggregate_into])
     ]
   end
   
@@ -34,9 +31,19 @@ defmodule DatomicGenServer.EntityMap do
       _ -> MapSet.new([one_or_many])
     end
   end
+  
+  defp to_aggregator(aggregator_pair) do
+    case aggregator_pair do
+      {aggregate_struct, key_rename_map} ->
+        fn(attr_map) -> 
+          struct_map = rename_keys(attr_map, key_rename_map)
+          struct(aggregate_struct, struct_map)
+        end
+      _ -> fn(x) -> x end
+    end
+  end
 
   # TODO Create an entity map from another entity map.
-  # TODO Aggregator should be a map of keys to rename, and a struct rather than an arbitrary function.
 
   # The aggregator function is used to convert Datoms to structs of your choosing.
   # If no conversion function is specified, the value for an entity key will be

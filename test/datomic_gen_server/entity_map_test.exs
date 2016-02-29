@@ -36,14 +36,15 @@ defmodule EntityMapTest do
     expected_entity_map = %EntityMap{
       inner_map: expected_inner_map,
       index_by: nil,
-      cardinality_many: [],
-      aggregator: &EntityMap.default_aggregator/1
+      cardinality_many: MapSet.new(),
+      aggregator: fn(x) -> x end
     }
     
     actual = EntityMap.new([d1, d2, d3, d4, d5, d6])
     
     assert actual.inner_map == expected_entity_map.inner_map
     assert actual.index_by == expected_entity_map.index_by
+    assert actual.cardinality_many == expected_entity_map.cardinality_many
     assert EntityMap.equal?(actual, expected_entity_map)
   end
   
@@ -108,16 +109,10 @@ defmodule EntityMapTest do
     d10 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
     d11 = %Datom{e: 3, a: :identifier, v: :hartley_stewart, tx: 0, added: false}
     
-    # This is how you get your struct's default values in the aggregated result
-    # if there is no value for that field in the incoming attribute map.
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{identifier: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
       
     result = EntityMap.new([d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11], 
-                cardinality_many: :name, index_by: :id, aggregator: aggregator)
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
   
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
@@ -127,7 +122,6 @@ defmodule EntityMapTest do
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
     assert result.inner_map == expected_inner_map
-    assert result.aggregator == aggregator
   end
   
   test "a nil value or empty collection value in a data tuple nullifies the given attribute
@@ -176,13 +170,10 @@ defmodule EntityMapTest do
     d4 = %{eid: 3, unique_name: :jim_stewart, name: "Jim Stewart", age: 23}
     d5 = %{eid: 4, unique_name: :hartley_stewart, name: "Hartley Stewart", age: 44}
     
-    aggregator = 
-      fn(attr_map) -> 
-        %TestPerson{id: attr_map[:unique_name], names: attr_map[:name], age: attr_map[:age]} 
-      end
+    result_struct = {TestPerson, %{unique_name: :id, name: :names}}
       
     result = EntityMap.from_records([d1, d2, d3, d4, d5], :eid, 
-              cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+              cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
     
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith", "William Smith"]), age: 32},
@@ -206,14 +197,10 @@ defmodule EntityMapTest do
     d6 = %{eid: 4, unique_name: :hartley_stewart, name: ["Hartley Stewart"], age: 44}
     d7 = %{eid: 4, unique_name: :hartley_stewart, name: MapSet.new(), age: 44}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{unique_name: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{unique_name: :id, name: :names}}
       
     result = EntityMap.from_records([d1, d2, d3, d4, d5, d6, d7], :eid, 
-              cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+              cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
     
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith", "William Smith"]), age: 32},
@@ -276,15 +263,11 @@ defmodule EntityMapTest do
       retracted_datoms: retracted_datoms, 
       tempids: %{-1432323 => 64}
     }
-  
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{identifier: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
       
     result = EntityMap.from_transaction(transaction, 
-              cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+              cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
   
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith", "William Smith"]), age: 32},
@@ -294,7 +277,6 @@ defmodule EntityMapTest do
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
     assert result.inner_map == expected_inner_map
-    assert result.aggregator == aggregator
   end
   
   test "updates an empty EntityMap with datoms" do
@@ -360,14 +342,10 @@ defmodule EntityMapTest do
     d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
     d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{identifier: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
   
     initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
-                    cardinality_many: :name, index_by: :id, aggregator: aggregator)
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
   
     d7 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 1, added: true}
     d8 = %Datom{e: 2, a: :age, v: 23, tx: 1, added: true}
@@ -389,7 +367,6 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
-    assert result.aggregator == aggregator    
   end
   
   test "In retracting a value in an EntityMap containing attribute maps, an 
@@ -539,13 +516,9 @@ defmodule EntityMapTest do
     d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
     d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
     
-    initial_map = EntityMap.new([d1, d2, d3, d4], aggregator: aggregator)
+    initial_map = EntityMap.new([d1, d2, d3, d4], aggregate_into: result_struct)
   
     d5 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: false}
     d6 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
@@ -570,15 +543,11 @@ defmodule EntityMapTest do
     d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
     d5 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
     d6 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
-  
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
     
     initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: ["Bill Smith", "William Smith"], tx: 0, added: false}
     d8 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: false}
@@ -602,13 +571,9 @@ defmodule EntityMapTest do
     d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
     d6 = %Datom{e: 2, a: :age, v: 45, tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
   
-    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregator: aggregator)
+    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: nil, tx: 0, added: false}
     d8 = %Datom{e: 1, a: :name, v: MapSet.new([]), tx: 0, added: false}
@@ -634,14 +599,10 @@ defmodule EntityMapTest do
     d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
     d6 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
     
     initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: nil, tx: 0, added: false}
     d8 = %Datom{e: 1, a: :name, v: [], tx: 0, added: false}
@@ -665,14 +626,10 @@ defmodule EntityMapTest do
     d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
     d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
     
     initial_map = EntityMap.new([d1, d2, d3, d4], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d5 = %Datom{e: 0, a: :name, v: ["William Smith"], tx: 0, added: false}
     d6 = %Datom{e: 1, a: :name, v: MapSet.new(["Karina Jones"]), tx: 0, added: false}
@@ -695,14 +652,10 @@ defmodule EntityMapTest do
     d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
     d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
   
     initial_map = EntityMap.new([d1, d2, d3, d4], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d5 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: false}
     d6 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: false}
@@ -819,14 +772,10 @@ defmodule EntityMapTest do
     d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
     d5 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
     d6 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: true}
-    
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
-    
-    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregator: aggregator)
+        
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
+
+    initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: "William Smith", tx: 1, added: true}
     d8 = %Datom{e: 1, a: :name, v: nil, tx: 1, added: true}
@@ -871,14 +820,10 @@ defmodule EntityMapTest do
     d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
     d6 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
     
     initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: nil, tx: 1, added: true}
     d8 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 1, added: true}
@@ -902,14 +847,10 @@ defmodule EntityMapTest do
     d3 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
     d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{"datom/e": :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
   
     initial_map = EntityMap.new([d1, d2, d3, d4], 
-                    cardinality_many: :name, aggregator: aggregator)
+                    cardinality_many: :name, aggregate_into: result_struct)
   
     d5 = %Datom{e: 0, a: :name, v: ["Billy Smith", "B. Smith"], tx: 1, added: true}
     d6 = %Datom{e: 1, a: :name, v: MapSet.new(["Karen Jones"]), tx: 1, added: true}
@@ -952,14 +893,10 @@ defmodule EntityMapTest do
     d4 = %{eid: 3, unique_name: :jim_stewart, name: "Jim Stewart", age: 23}
     d5 = %{eid: 4, unique_name: :hartley_stewart, name: MapSet.new(["Hartley Stewart"]), age: 44}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{unique_name: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{unique_name: :id, name: :names}}
       
     initial_map = EntityMap.from_records([d1, d2, d3, d4, d5], :eid, 
-                    cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+                    cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
   
     d6 = %{eid: 1, unique_name: :bill_smith , name: "Bill Smith", age: 33}
     d7 = %{eid: 2, unique_name: :karina_jones, name: MapSet.new(["Karen Jones"]), age: 64}
@@ -987,15 +924,11 @@ defmodule EntityMapTest do
     d3 = [2, :karina_jones, ["Karina Jones", "Karen Jones"], 64]
     d4 = [3, :jim_stewart, "Jim Stewart", 23]
     d5 = [4, :hartley_stewart, MapSet.new(["Hartley Stewart"]), 44]
-    
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{unique_name: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
-      
+
+    result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
     initial_map = EntityMap.from_rows([d1, d2, d3, d4, d5], header, :eid, 
-                    cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+                    cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
   
     d6 = [1, :bill_smith, "Bill Smith", 33]
     d7 = [2, :karina_jones, MapSet.new(["Karen Jones"]), 64]
@@ -1021,14 +954,10 @@ defmodule EntityMapTest do
     d3 = %{eid: 1, identifier: :karina_jones, name: ["Karina Jones", "Karen Jones"], age: 64}
     d4 = %{eid: 2, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
     
-    aggregator = 
-      fn(attr_map) -> 
-        struct_map = EntityMap.rename_keys(attr_map, %{identifier: :id, name: :names})
-        struct(TestPerson, struct_map)
-      end
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
       
     initial_map = EntityMap.from_records([d1, d2, d3, d4], :eid, 
-                    cardinality_many: [:name], index_by: :id, aggregator: aggregator)
+                    cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
 
     d5 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: false}
     d6 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: false}
@@ -1061,6 +990,5 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
-    assert result.aggregator == aggregator
   end
 end
