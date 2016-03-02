@@ -436,7 +436,7 @@ defmodule DatomicGenServer.EntityMap do
     |> Map.delete(nil) 
   end
   
-  # Pass in a map and another map from keys to new keys.
+  # Utility function: Pass in a map and another map from keys to new keys.
   @spec rename_keys(map, map) :: EntityMap.t
   def rename_keys(map, key_rename_map) do
     Enum.map(map, fn({k,v}) ->             
@@ -448,9 +448,27 @@ defmodule DatomicGenServer.EntityMap do
   
   # Map functions
   
-  # Deletes the entry in the EntityMap for a specific entity key. 
-  # If the key does not exist, returns the map unchanged.
-  # delete(entity_map, entity_key)
+  # Deletes the entry in the EntityMap for a specific index key. If the EntityMap 
+  # is not indexed, the entity ID is used. If the key does not exist, returns the 
+  # map unchanged.
+  @spec delete(map, term) :: EntityMap.t
+  def delete(entity_map, index_key) do
+    map_entry = get(entity_map, index_key)
+    if map_entry do
+      new_inner_map = Map.delete(entity_map.inner_map, index_key)
+      
+      entity_id = get_attr(entity_map, index_key, e_key)
+      new_raw_data = Map.delete(entity_map.raw_data, entity_id)
+      
+      %__MODULE__{raw_data: new_raw_data,
+                  inner_map: new_inner_map, 
+                  index_by: entity_map.index_by, 
+                  cardinality_many: entity_map.cardinality_many, 
+                  aggregator: entity_map.aggregator}
+    else
+      entity_map
+    end
+  end
 
   # Deletes the entries for all of the given keys from the map.
   # drop(entity_map, entity_keys)
@@ -480,11 +498,28 @@ defmodule DatomicGenServer.EntityMap do
   # However, it is not used in the actual filtering.
   # filter(entity_map, separator_func) :: EntityMap
 
-  # Gets the value for a specific entity key.
-  # If key does not exist, returns the default value (nil if no default value).
-  # get(entity_map, entity_key, default \\ nil)
+  # Gets the value for a specific index key. If the EntityMap is not indexed, the 
+  # entity ID is used. If the key does not exist, returns the default value
+  # (or nil if there is no default value).
+  @spec get(EntityMap.t, term, term) :: term
+  def get(entity_map, index_key, default \\ nil) do
+    Map.get(entity_map.inner_map, index_key, default)
+  end
   
-  # get_attr(entity_map, entity_key, attr_key, default \\ nil)
+  # Gets the value for a specific index key and attribute key. If the EntityMap 
+  # is not indexed, the entity ID is used as the index. If the EntityMap is
+  # aggregated, the attribute key is the name of the field in the aggregated
+  # struct; the attribute names in the raw data are not used. If either key does 
+  # not exist, the default value is returned (or nil if there is no default value).
+  @spec get_attr(EntityMap.t, term, term, term) :: term
+  def get_attr(entity_map, index_key, attr_key, default \\ nil) do
+    entity = Map.get(entity_map.inner_map, index_key)
+    if entity do
+      Map.get(entity, attr_key, default)
+    else
+      default
+    end
+  end
   
   # Returns whether a given entity key exists in the given map
   # has_key?(entity_map, entity_key)

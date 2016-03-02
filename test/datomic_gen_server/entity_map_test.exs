@@ -991,4 +991,123 @@ defmodule EntityMapTest do
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
   end
+    
+  test "deletes an entity from an EntityMap" do
+    d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: true}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4])
+    
+    expected_inner_map = %{
+      1 => %{"datom/e": 1, attr2: :value3, attr3: :value2},
+    }
+    
+    result = EntityMap.delete(entity_map, 0)
+    
+    assert result.inner_map == expected_inner_map
+  end
+  
+  test "deletes an entity from an EntityMap using the index" do
+    d1 = %Datom{e: 0, a: :attr1, v: :value1, tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :attr1, v: :value3, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :attr2, v: :value4, tx: 0, added: true}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4], index_by: :attr1)
+        
+    expected_inner_map = %{
+      :value3 => %{"datom/e": 1, attr1: :value3, attr2: :value4},
+    }
+    
+    result = EntityMap.delete(entity_map, :value1)
+    
+    assert result.index_by == :attr1
+    assert result.inner_map == expected_inner_map
+  end
+  
+  test "gets an entity from an EntityMap" do
+    d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: true}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4])
+    
+    result = EntityMap.get(entity_map, 1)
+    assert result == %{"datom/e": 1, attr2: :value3, attr3: :value2}
+    
+    result = EntityMap.get(entity_map, 3)
+    assert result == nil
+    
+    result = EntityMap.get(entity_map, 5, %{})
+    assert result == %{}
+    
+  end
+
+  test "gets an entity from an EntityMap using the index" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+    result = EntityMap.get(entity_map, :bill_smith)
+    assert result == %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32}
+    
+    result = EntityMap.get(entity_map, :jim_stewart)
+    assert result == nil
+  end
+
+  
+  test "gets an attribute value from an EntityMap" do
+    d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4])
+    
+    result = EntityMap.get_attr(entity_map, 1, :attr2)
+    assert result == :value3
+    
+    result = EntityMap.get_attr(entity_map, 1, :attr5)
+    assert result == nil
+    
+    result = EntityMap.get_attr(entity_map, 1, :attr5, :foo)
+    assert result == :foo
+    
+    result = EntityMap.get_attr(entity_map, 5, :attr2)
+    assert result == nil
+
+    result = EntityMap.get_attr(entity_map, 5, :attr5, :foo)
+    assert result == :foo
+  end
+
+  test "gets an attribute value from an EntityMap using the index and the aggregate struct key" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+    result = EntityMap.get_attr(entity_map, :bill_smith, :names)
+    assert result == MapSet.new(["Bill Smith"])
+    
+    result = EntityMap.get_attr(entity_map, :bill_smith, :name)
+    assert result == nil
+  end
+
+
 end
