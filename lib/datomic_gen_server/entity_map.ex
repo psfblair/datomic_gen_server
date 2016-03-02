@@ -521,15 +521,21 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  # Returns whether a given entity key exists in the given map
-  # has_key?(entity_map, entity_key)
+  # Returns whether a given index key exists in the given map
+  @spec has_key?(EntityMap.t, term) :: boolean
+  def has_key?(entity_map, index_key) do
+    Map.has_key?(entity_map.inner_map, index_key)
+  end
   
   # Selects a group of attributes and populates an entity map containing only those
   # into(entity_map, attrs)
   # into(entity_map, attrs, aggregator)
   
-  # Returns all entity keys from the map
-  # keys(entity_map)
+  # Returns all index keys from the map, in a list.
+  @spec keys(EntityMap.t) :: [term]
+  def keys(entity_map) do
+    Map.keys(entity_map.inner_map)
+  end
   
   # Merges two maps into one. All entity keys in map2 will be added to map1. 
   # If an entity key already exists in map1, the attribute values of the entity
@@ -564,13 +570,11 @@ defmodule DatomicGenServer.EntityMap do
   # a new EntityMap.
   # take(entity_map, entity_keys)
   
-  # Converts the EntityMap to a list
-  # to_list(entity_map)
-  
-  # Returns all values from the EntityMap
-  # values(entity_map)
-
-  
+  # Returns all entities from the EntityMap
+  @spec values(EntityMap.t) :: [term]
+  def values(entity_map) do
+    Map.values(entity_map.inner_map)
+  end
   
   # TODO - Map functions to support some time in the future
   # get_and_update(entity_map, entity_key, fun)

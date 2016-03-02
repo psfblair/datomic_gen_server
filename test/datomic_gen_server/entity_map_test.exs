@@ -1109,5 +1109,63 @@ defmodule EntityMapTest do
     assert result == nil
   end
 
+  test "determines if an entity is in the map" do
+    d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+    d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4])
+    
+    assert EntityMap.has_key?(entity_map, 0)
+    assert ! EntityMap.has_key?(entity_map, 2)
+  end
+  
+  test "determines if an entity is in the map using the index" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], index_by: :identifier)
+    
+    assert EntityMap.has_key?(entity_map, :bill_smith)
+    assert ! EntityMap.has_key?(entity_map, :jim_stewart)
+  end
+  
+  test "returns all entity index keys in the EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], index_by: :identifier)
+    
+    assert EntityMap.keys(entity_map) == [:bill_smith, :karina_jones]
+  end
+  
+  test "returns all entities in the EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, aggregate_into: result_struct)
+                
+    expected = [
+      %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
+      %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64}
+    ]
+    
+    assert EntityMap.values(entity_map) == expected
+  end
 
 end
