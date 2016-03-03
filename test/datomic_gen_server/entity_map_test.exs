@@ -1280,12 +1280,83 @@ defmodule EntityMapTest do
     assert Map.get(updated_bill_raw2, :name) == MapSet.new([])
   end
   
-  # test "can change the index on an EntityMap" do
-  #   
-  # end
+  test "can change the index on an EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                    
+    re_indexed = EntityMap.index_by(entity_map, :age)
+    
+    expected_inner_map = %{
+      32 => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
+      64 => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64}      
+    }
+    
+    assert re_indexed.inner_map == expected_inner_map
+    assert re_indexed.raw_data == entity_map.raw_data    
+  end
+  
+  defmodule TestPerson2 do
+    defstruct id: nil, age: 0
+  end
+  
+  test "can change the aggregate on an EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+    new_result_struct = {TestPerson2, %{identifier: :id}}
+    re_aggregated = EntityMap.aggregate_by(entity_map, new_result_struct)
+    
+    expected_inner_map = %{
+      :bill_smith => %TestPerson2{id: :bill_smith, age: 32},
+      :karina_jones => %TestPerson2{id: :karina_jones, age: 64}      
+    }
+    
+    assert re_aggregated.inner_map == expected_inner_map
+    assert re_aggregated.raw_data == entity_map.raw_data    
+  end
   
   
-# TODO - TEST index_by - SHOULD INDEX ON RAW DATA; should have raw data
+  test "can change the aggregate and index on an EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+    new_result_struct = {TestPerson2, %{identifier: :id}}
+    re_aggregated = EntityMap.aggregate_by(entity_map, new_result_struct, :age)
+    
+    expected_inner_map = %{
+      32 => %TestPerson2{id: :bill_smith, age: 32},
+      64 => %TestPerson2{id: :karina_jones, age: 64}      
+    }
+    
+    assert re_aggregated.inner_map == expected_inner_map
+    assert re_aggregated.raw_data == entity_map.raw_data    
+  end
+  
 # TODO - Test aggregation when a record doesn't have the fields for that entity
+# TODO - Test aggregate_by
 # TODO - Test multiple aggregation
 end

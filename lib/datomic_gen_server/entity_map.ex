@@ -498,8 +498,27 @@ defmodule DatomicGenServer.EntityMap do
   
   # Map functions
   
-  # TODO
-  # aggregate_by(entity_map, aggregate)
+  # Make sure that the index exists in the new aggregate! Defaults to the old
+  # index.
+  @spec aggregate_by(EntityMap.t, aggregate, term) :: EntityMap.t
+  def aggregate_by(entity_map, aggregate, new_index \\ nil) do
+    new_aggregator = to_aggregator(aggregate)
+    new_aggregate_field_to_raw_attribute = invert_key_rename_map(aggregate)
+
+    new_inner_map = 
+      entity_map.raw_data
+      |> to_aggregated_map(new_aggregator)
+      |> index_if_necessary(new_index || entity_map.index_by)
+      
+    %__MODULE__{raw_data: entity_map.raw_data,
+                inner_map: new_inner_map, 
+                index_by: entity_map.index_by, 
+                cardinality_many: entity_map.cardinality_many, 
+                aggregator: new_aggregator,
+                aggregate_field_to_raw_attribute: new_aggregate_field_to_raw_attribute
+               }
+
+  end
   
   # Deletes the entry in the EntityMap for a specific index key. If the EntityMap 
   # is not indexed, the entity ID is used. If the key does not exist, returns the 
@@ -589,7 +608,8 @@ defmodule DatomicGenServer.EntityMap do
   def index_by(entity_map, attribute) do
     new_inner = entity_map.inner_map |> index_map_by(attribute)
       
-    %__MODULE__{inner_map: new_inner, 
+    %__MODULE__{raw_data: entity_map.raw_data,
+                inner_map: new_inner, 
                 index_by: attribute, 
                 cardinality_many: entity_map.cardinality_many,
                 aggregator: entity_map.aggregator,
@@ -611,7 +631,7 @@ defmodule DatomicGenServer.EntityMap do
     if ! entity_map.index_by do 
       index_key
     else
-      raw_data_index_attr = aggregate_field_to_raw_attribute(entity_map, entity_map.index_by)      
+      raw_data_index_attr = to_raw_attribute(entity_map, entity_map.index_by)      
       
       {entity_id, _} = 
         Enum.find(entity_map.raw_data, fn({entity_id, attributes}) -> 
@@ -622,8 +642,8 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  @spec aggregate_field_to_raw_attribute(EntityMap.t, term) :: term
-  defp aggregate_field_to_raw_attribute(entity_map, attr_key) do
+  @spec to_raw_attribute(EntityMap.t, term) :: term
+  defp to_raw_attribute(entity_map, attr_key) do
     if entity_map.aggregate_field_to_raw_attribute do
       val = Map.get(entity_map.aggregate_field_to_raw_attribute, attr_key)
       if val do val else attr_key end
@@ -659,7 +679,7 @@ defmodule DatomicGenServer.EntityMap do
   @spec put_attr(EntityMap.t, term, term, term, [{atom, boolean}]) :: {:ok, EntityMap.t} | {:error, String.t}
   def put_attr(entity_map, index_key, attr_key, val, options \\ []) do
     entity_id = entity_id_from_index(entity_map, index_key)
-    raw_attr_key = aggregate_field_to_raw_attribute(entity_map, attr_key)
+    raw_attr_key = to_raw_attribute(entity_map, attr_key)
     cond do
       ! entity_id -> {:error, "Unable to find entity ID for index key #{index_key}"}
       ! raw_attr_key -> {:error, "Unable to determine raw attribute key for aggregate attribute #{attr_key}"}
