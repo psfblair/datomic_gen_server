@@ -26,9 +26,6 @@ defmodule DatomicGenServer.EntityMap do
   # This makes sure the null carries through if 
   # many values are being added for a given attribute, only one of which is null.
   
-  # TODO if a value for cardinality many attribute is not in an attribute map, it
-  # should be set to the empty set.
-  
   defstruct raw_data: %{}, inner_map: %{}, 
             cardinality_many: MapSet.new(), index_by: nil, 
             aggregator: nil, aggregate_field_to_raw_attribute: %{}
@@ -92,8 +89,6 @@ defmodule DatomicGenServer.EntityMap do
       _ -> nil
     end
   end
-
-  # TODO Create an entity map from another entity map.
 
   # The aggregator function is used to convert DataTuples to structs of your choosing.
   # If no conversion function is specified, the value for an entity key will be
@@ -503,6 +498,9 @@ defmodule DatomicGenServer.EntityMap do
   
   # Map functions
   
+  # TODO
+  # aggregate_by(entity_map, aggregate)
+  
   # Deletes the entry in the EntityMap for a specific index key. If the EntityMap 
   # is not indexed, the entity ID is used. If the key does not exist, returns the 
   # map unchanged.
@@ -512,7 +510,7 @@ defmodule DatomicGenServer.EntityMap do
     if map_entry do
       new_inner_map = Map.delete(entity_map.inner_map, index_key)
       
-      entity_id = get_attr(entity_map, index_key, e_key)
+      entity_id = entity_id_from_index(entity_map, index_key)
       new_raw_data = Map.delete(entity_map.raw_data, entity_id)
       
       %__MODULE__{raw_data: new_raw_data,
@@ -550,12 +548,6 @@ defmodule DatomicGenServer.EntityMap do
   
   # TODO 
   # fetch_attr!(entity_map, entity_key, attr_key)
-  
-  # TODO Filters out only certain entity key/attribute map pairs according to the function,
-  # which takes a pair and returns true or false
-  # An optional aggregator may be passed in to become the aggregator for the new map.
-  # However, it is not used in the actual filtering.
-  # filter(entity_map, separator_func) :: EntityMap
 
   # Gets the value for a specific index key. If the EntityMap is not indexed, the 
   # entity ID is used. If the key does not exist, returns the default value
@@ -605,7 +597,7 @@ defmodule DatomicGenServer.EntityMap do
                }
   end
   
-  # Removes nil key
+  # Removes nil keys
   @spec index_map_by(map, term) :: map
   defp index_map_by(entity_mapping, attribute) do
     entity_mapping
@@ -614,21 +606,20 @@ defmodule DatomicGenServer.EntityMap do
     |> Map.delete(nil) 
   end
   
-  @spec index_to_entity_id(EntityMap.t) :: map
-  defp index_to_entity_id(entity_map) do
-    get_index_value = fn(attributes, entity_id) -> 
-      if entity_map.index_by do 
-        raw_attr = aggregate_field_to_raw_attribute(entity_map, entity_map.index_by)
-        Map.get(attributes, raw_attr)
-      else
-        entity_id
-      end
+  @spec entity_id_from_index(EntityMap.t, term) :: term
+  defp entity_id_from_index(entity_map, index_key) do
+    if ! entity_map.index_by do 
+      index_key
+    else
+      raw_data_index_attr = aggregate_field_to_raw_attribute(entity_map, entity_map.index_by)      
+      
+      {entity_id, _} = 
+        Enum.find(entity_map.raw_data, fn({entity_id, attributes}) -> 
+          Map.get(attributes, raw_data_index_attr) == index_key 
+        end)
+        
+      entity_id
     end
-    
-    entity_map.raw_data
-    |> Enum.map(fn({entity_id, attributes}) -> {get_index_value.(attributes, entity_id), entity_id} end)
-    |> Enum.into(%{})
-    |> Map.delete(nil)     
   end
   
   @spec aggregate_field_to_raw_attribute(EntityMap.t, term) :: term
@@ -647,20 +638,9 @@ defmodule DatomicGenServer.EntityMap do
     Map.keys(entity_map.inner_map)
   end
   
-  # TODO Merges two maps into one. All entity keys in map2 will be added to map1. 
-  # If an entity key already exists in map1, the attribute values of the entity
-  # value in map2 will overwrite those in the value of the entity in map1.
-  # merge(entity_map1, entity_map2)
-  
-  # TODO Partitions an EntityMap into two EntityMaps according to the function,
-  # which takes a pair and returns true or false
-  # Optional aggregators may be passed in to become the new aggregators for each map.
-  # However, they are not used in the partitioning.
-  # partition(entity_map, separator_func) :: {EntityMap, EntityMap}
-
   # TODO Returns and removes the value associated with an entity key in the map
   # pop(entity_map, entity_key, default \\ nil)
-  
+
   # Returns an EntityMap with the given entity added. Requires that the entity 
   # be in the form of a map of attributes to values, including the entity id 
   # (not just the index key). The key of the field containing the entity id 
@@ -678,7 +658,7 @@ defmodule DatomicGenServer.EntityMap do
   # If either key does not exist, ...?
   @spec put_attr(EntityMap.t, term, term, term, [{atom, boolean}]) :: {:ok, EntityMap.t} | {:error, String.t}
   def put_attr(entity_map, index_key, attr_key, val, options \\ []) do
-    entity_id = index_to_entity_id(entity_map) |> Map.get(index_key)
+    entity_id = entity_id_from_index(entity_map, index_key)
     raw_attr_key = aggregate_field_to_raw_attribute(entity_map, attr_key)
     cond do
       ! entity_id -> {:error, "Unable to find entity ID for index key #{index_key}"}
@@ -708,32 +688,57 @@ defmodule DatomicGenServer.EntityMap do
     |> Enum.into(%{})                          
   end
   
-  # TODO Takes all entries corresponding to the given entity keys and extracts them 
-  # into a separate EntityMap. Returns a tuple with the new map and the old map 
-  # with removed keys. Keys for which there are no entires in the map are ignored.
-  # split(entity_map, entity_keys)
-  
-  # TODO Takes all entries corresponding to the given entity keys and returns them in 
-  # a new EntityMap.
-  # take(entity_map, entity_keys)
-  
   # Returns all entities from the EntityMap
   @spec values(EntityMap.t) :: [term]
   def values(entity_map) do
     Map.values(entity_map.inner_map)
   end
   
-  # TODO - Other map functions to support at some time in the future:
-  # get_and_update(entity_map, entity_key, fun)
-  #      Gets the value from key and updates it, all in one pass
-  # Get_and_update!(entity_map, entity_key, fun)  
-  #      Gets the value from key and updates it. Raises if there is no key
-  # get_lazy(entity_map, key, fun)
-  #      Gets the value for a specific key. If key does not exist, lazily evaluates
-  #      fun and returns its result.
-  # pop_lazy(entity_map, key, fun)  
-  #      Lazily returns and removes all values associated with key in the map
-  # put_new_lazy(entity_map, key, fun)
-  #      Evaluates fun and puts the result under key in map unless key is already present
+  
+  # TODO Additional possibilities for the future:
 
+  # Returns a new EntityMap containing a subset of the original EntityMap's data,
+  # according to the filter function, which takes a key/aggregate pair and returns true or false.
+  # An optional aggregator may be passed in to become the aggregator for the new map.
+  # This may not really be necessary, as creating a new entity map with a different
+  # aggregator largely accomplishes the same thing.
+  #
+  # filter(entity_map, separator_func) :: EntityMap
+  
+  # Gets the value for the index key and updates it, all in one pass
+  #
+  # get_and_update(entity_map, index_key, fun)
+
+  # Gets the value for the index key and updates it. Raises if there is no key.
+  #
+  # get_and_update!(entity_map, index_key, fun)  
+
+  # Merges two EntityMaps into one. All entity keys in map2 will be added to map1. 
+  # If an entity key already exists in map1, the attribute values of the entity
+  # value in map2 will overwrite those in the value of the entity in map1.
+  #
+  # merge(entity_map1, entity_map2)
+  
+  # Create an entity map from another entity map.
+  #
+  # new(entity_map, [entity_map_option]) :: EntityMap.t
+
+  # Partitions an EntityMap into two EntityMaps according to the partition function,
+  # which takes a key/aggregate pair and returns true or false.
+  # Optional aggregators may be passed in to become the new aggregators for each map.
+  # This may not really be necessary, as creating multiple entity maps with the
+  # same underlying data but different aggregators largely accomplishes the same thing. 
+  # 
+  # partition(entity_map, separator_func) :: {EntityMap, EntityMap}
+  
+  # Takes all entries corresponding to the given entity keys and extracts them 
+  # into a separate EntityMap. Returns a tuple with the new map and the old map 
+  # with removed keys. Keys for which there are no entires in the map are ignored.
+  #
+  # split(entity_map, entity_keys)
+  
+  # Takes all entries corresponding to the given entity keys and returns them in 
+  # a new EntityMap.
+  #
+  # take(entity_map, entity_keys)
 end

@@ -48,6 +48,7 @@ defmodule EntityMapTest do
     assert EntityMap.equal?(actual, expected_entity_map)
   end
   
+  # TODO Equal inner maps or equal raw data, or both?
   test "two EntityMaps containing equal data are equal" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
     d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
@@ -985,7 +986,7 @@ defmodule EntityMapTest do
     assert result.index_by == :id
     assert result.cardinality_many == MapSet.new([:name])
   end
-    
+
   test "deletes an entity from an EntityMap" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
     d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
@@ -994,31 +995,57 @@ defmodule EntityMapTest do
     
     entity_map = EntityMap.new([d1, d2, d3, d4])
     
+    result = EntityMap.delete(entity_map, 0)
+    
     expected_inner_map = %{
       1 => %{"datom/e": 1, attr2: :value3, attr3: :value2},
     }
-    
-    result = EntityMap.delete(entity_map, 0)
-    
+      
     assert result.inner_map == expected_inner_map
+    assert result.raw_data == expected_inner_map
   end
   
-  test "deletes an entity from an EntityMap using the index" do
-    d1 = %Datom{e: 0, a: :attr1, v: :value1, tx: 0, added: true}
-    d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
-    d3 = %Datom{e: 1, a: :attr1, v: :value3, tx: 0, added: true}
-    d4 = %Datom{e: 1, a: :attr2, v: :value4, tx: 0, added: true}
+  test "returns unchanged EntityMap if deleting an entity that is not in the map" do
+    d1 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+    d2 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: true}
     
-    entity_map = EntityMap.new([d1, d2, d3, d4], index_by: :attr1)
+    entity_map = EntityMap.new([d1, d2])
+    
+    result = EntityMap.delete(entity_map, 5)
+    
+    expected_inner_map = %{
+      1 => %{"datom/e": 1, attr2: :value3, attr3: :value2},
+    }
+      
+    assert result.inner_map == expected_inner_map
+    assert result.raw_data == expected_inner_map
+  end
+
+  test "deletes an aggregated entity from an EntityMap using the index" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+    
+    result = EntityMap.delete(entity_map, :bill_smith)
         
     expected_inner_map = %{
-      :value3 => %{"datom/e": 1, attr1: :value3, attr2: :value4},
+      :karina_jones => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64}
     }
     
-    result = EntityMap.delete(entity_map, :value1)
+    expected_raw_data = %{
+      1 => %{"datom/e": 1, identifier: :karina_jones, name: MapSet.new(["Karina Jones"]), age: 64}
+    }
     
-    assert result.index_by == :attr1
+    assert result.index_by == :id
     assert result.inner_map == expected_inner_map
+    assert result.raw_data == expected_raw_data
   end
   
   test "gets an entity from an EntityMap" do
@@ -1251,8 +1278,14 @@ defmodule EntityMapTest do
     assert EntityMap.get_attr(updated4, :bill_smith, :names) == MapSet.new([])
     updated_bill_raw2 = Map.get(updated4.raw_data, 0)
     assert Map.get(updated_bill_raw2, :name) == MapSet.new([])
-  end  
+  end
+  
+  # test "can change the index on an EntityMap" do
+  #   
+  # end
+  
   
 # TODO - TEST index_by - SHOULD INDEX ON RAW DATA; should have raw data
-# TODO - Test delete - when using aggregates, test that appropriate raw data map deletion happens.
+# TODO - Test aggregation when a record doesn't have the fields for that entity
+# TODO - Test multiple aggregation
 end
