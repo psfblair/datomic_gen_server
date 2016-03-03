@@ -138,22 +138,16 @@ defmodule EntityMapTest do
     d10 = %DataTuple{e: 2, a: :attr1, v: :value1b, added: true}
     d11 = %DataTuple{e: 2, a: :attr1, v: MapSet.new(), added: true}
     d12 = %DataTuple{e: 2, a: :attr2, v: :value2b, added: true}
-    d13 = %DataTuple{e: 3, a: :attr1, v: nil, added: true}
-    d14 = %DataTuple{e: 3, a: :attr2, v: :value2c, added: true}
-    d15 = %DataTuple{e: 4, a: :attr1, v: [], added: true}
-    d16 = %DataTuple{e: 4, a: :attr2, v: :value2d, added: true}
-    d17 = %DataTuple{e: 5, a: :attr1, v: MapSet.new(), added: true}
-    d18 = %DataTuple{e: 5, a: :attr2, v: nil, added: true}
+    d13 = %DataTuple{e: 3, a: :attr1, v: MapSet.new(), added: true}
+    d14 = %DataTuple{e: 3, a: :attr2, v: nil, added: true}
     
-    result = EntityMap.new([d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12,
-                            d13, d14, d15, d16, d17, d18], cardinality_many: [:attr1])
+    result = EntityMap.new([d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14], 
+              cardinality_many: [:attr1])
         
     expected_inner_map = %{
-      0 => %{"datom/e": 0, attr2: :value2},
-      1 => %{"datom/e": 1, attr2: :value2a},
-      2 => %{"datom/e": 2, attr2: :value2b},
-      3 => %{"datom/e": 3, attr2: :value2c},
-      4 => %{"datom/e": 4, attr2: :value2d},
+      0 => %{"datom/e": 0, attr1: MapSet.new(), attr2: :value2},
+      1 => %{"datom/e": 1, attr1: MapSet.new(), attr2: :value2a},
+      2 => %{"datom/e": 2, attr1: MapSet.new(), attr2: :value2b},
     }
     
     assert result.index_by == nil
@@ -440,7 +434,7 @@ defmodule EntityMapTest do
   end
   
   test "In retracting a value in an EntityMap containing attribute maps, an attribute 
-        key is removed when the value is nil or empty and the old value is a set" do
+        is set to the empty set when the value to retract is nil or empty" do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
     d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
@@ -457,7 +451,7 @@ defmodule EntityMapTest do
     result = EntityMap.update(initial_map, [d7, d8, d9])
     
     expected_inner_map = %{
-      1 => %{"datom/e": 1, age: 64},
+      1 => %{"datom/e": 1, name: MapSet.new([]), age: 64},
     }
     
     assert result.inner_map == expected_inner_map 
@@ -717,7 +711,7 @@ defmodule EntityMapTest do
   end
   
   test "In adding a value to an EntityMap containing attribute maps, when the attribute
-        is cardinality many, a nil or empty collection nullifies the existing collection." do
+        is cardinality many, a nil or empty collection empties the existing collection." do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
     d3 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: true}
@@ -735,8 +729,8 @@ defmodule EntityMapTest do
     result = EntityMap.update(initial_map, [d7, d8, d9, d10])
     
     expected_inner_map = %{
-      0 => %{"datom/e": 0, age: 32},
-      1 => %{"datom/e": 1, age: 64}
+      0 => %{"datom/e": 0, name: MapSet.new(), age: 32},
+      1 => %{"datom/e": 1, name: MapSet.new(), age: 64}
     }
     
     assert result.inner_map == expected_inner_map 
@@ -774,7 +768,7 @@ defmodule EntityMapTest do
     d6 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: true}
         
     result_struct = {TestPerson, %{"datom/e": :id, name: :names}}
-
+  
     initial_map = EntityMap.new([d1, d2, d3, d4, d5, d6], aggregate_into: result_struct)
   
     d7 = %Datom{e: 0, a: :name, v: "William Smith", tx: 1, added: true}
@@ -877,8 +871,8 @@ defmodule EntityMapTest do
     result = EntityMap.update_from_records(initial_map, [d5, d6], :id)
     
     expected_inner_map = %{
-      1 => %{"datom/e": 1, id: 1},
-      2 => %{"datom/e": 2, id: 2, attr2: :value2a},
+      1 => %{"datom/e": 1, id: 1, attr1: MapSet.new()},
+      2 => %{"datom/e": 2, id: 2, attr1: MapSet.new(), attr2: :value2a},
     }
     
     assert result.index_by == nil
@@ -924,9 +918,9 @@ defmodule EntityMapTest do
     d3 = [2, :karina_jones, ["Karina Jones", "Karen Jones"], 64]
     d4 = [3, :jim_stewart, "Jim Stewart", 23]
     d5 = [4, :hartley_stewart, MapSet.new(["Hartley Stewart"]), 44]
-
+  
     result_struct = {TestPerson, %{unique_name: :id, name: :names}}
-
+  
     initial_map = EntityMap.from_rows([d1, d2, d3, d4, d5], header, :eid, 
                     cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
   
@@ -958,13 +952,13 @@ defmodule EntityMapTest do
       
     initial_map = EntityMap.from_records([d1, d2, d3, d4], :eid, 
                     cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
-
+  
     d5 = %Datom{e: 0, a: :name, v: "William Smith", tx: 0, added: false}
     d6 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: false}
     d7 = %Datom{e: 2, a: :age, v: 23, tx: 0, added: false}
     d8 = %Datom{e: 2, a: :identifier, v: nil, tx: 0, added: false}
     d9 = %Datom{e: 2, a: :name, v: "Jim Stewart", tx: 0, added: false}
-
+  
     d10 = %Datom{e: 1, a: :name, v: "K. Jones", tx: 0, added: true}
     d11 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: true}
     d12 = %Datom{e: 3, a: :name, v: "H. Stewart", tx: 0, added: true}
@@ -1045,7 +1039,7 @@ defmodule EntityMapTest do
     assert result == %{}
     
   end
-
+  
   test "gets an entity from an EntityMap using the index" do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
@@ -1057,14 +1051,14 @@ defmodule EntityMapTest do
     result_struct = {TestPerson, %{identifier: :id, name: :names}}
     entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
                 cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
-
+  
     result = EntityMap.get(entity_map, :bill_smith)
     assert result == %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32}
     
     result = EntityMap.get(entity_map, :jim_stewart)
     assert result == nil
   end
-
+  
   
   test "gets an attribute value from an EntityMap" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
@@ -1085,11 +1079,11 @@ defmodule EntityMapTest do
     
     result = EntityMap.get_attr(entity_map, 5, :attr2)
     assert result == nil
-
+  
     result = EntityMap.get_attr(entity_map, 5, :attr5, :foo)
     assert result == :foo
   end
-
+  
   test "gets an attribute value from an EntityMap using the index and the aggregate struct key" do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
@@ -1101,14 +1095,14 @@ defmodule EntityMapTest do
     result_struct = {TestPerson, %{identifier: :id, name: :names}}
     entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
                 cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
-
+  
     result = EntityMap.get_attr(entity_map, :bill_smith, :names)
     assert result == MapSet.new(["Bill Smith"])
     
     result = EntityMap.get_attr(entity_map, :bill_smith, :name)
     assert result == nil
   end
-
+  
   test "determines if an entity is in the map" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
     d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
@@ -1167,5 +1161,98 @@ defmodule EntityMapTest do
     
     assert EntityMap.values(entity_map) == expected
   end
-
+  
+  test "can add an entity record to the EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+  
+    d7 = %{eid: 3, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
+  
+    result = EntityMap.put(entity_map, d7, :eid)
+    
+    expected_inner_map = %{
+      :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
+      :karina_jones => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64},
+      :jim_stewart => %TestPerson{id: :jim_stewart, names: MapSet.new(["Jim Stewart"]), age: 23}
+    }
+    
+    assert result.inner_map == expected_inner_map
+  end
+  
+  test "can update an entity record in the EntityMap" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                    
+    {:ok, updated} = EntityMap.put_attr(entity_map, :karina_jones, :age, 34)
+    assert EntityMap.get_attr(updated, :karina_jones, :age) == 34
+    updated_karina_raw = Map.get(updated.raw_data, 1)
+    assert Map.get(updated_karina_raw, :age) == 34
+  
+    {:ok, updated2} = EntityMap.put_attr(entity_map, :karina_jones, :names, "Karen Jones")
+    assert EntityMap.get_attr(updated2, :karina_jones, :names) == MapSet.new(["Karina Jones", "Karen Jones"])
+    updated_karina_raw2 = Map.get(updated2.raw_data, 1)
+    assert Map.get(updated_karina_raw2, :name) == MapSet.new(["Karina Jones", "Karen Jones"])
+    
+    {:ok, updated3} = EntityMap.put_attr(entity_map, :bill_smith, :names, ["William Smith"])
+    assert EntityMap.get_attr(updated3, :bill_smith, :names) == MapSet.new(["Bill Smith", "William Smith"])
+    updated_bill_raw = Map.get(updated3.raw_data, 0)
+    assert Map.get(updated_bill_raw, :name) == MapSet.new(["Bill Smith", "William Smith"])
+    
+    {:ok, updated4} = EntityMap.put_attr(entity_map, :bill_smith, :names, ["William Smith"], overwrite_collection: true)
+    assert EntityMap.get_attr(updated4, :bill_smith, :names) == MapSet.new(["William Smith"])
+    updated_bill_raw2 = Map.get(updated4.raw_data, 0)
+    assert Map.get(updated_bill_raw2, :name) == MapSet.new(["William Smith"])
+  end
+  
+  test "can update an entity with a null value" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                    
+    {:ok, updated} = EntityMap.put_attr(entity_map, :karina_jones, :age, nil)
+    assert EntityMap.get_attr(updated, :karina_jones, :age) == nil
+    updated_karina_raw = Map.get(updated.raw_data, 1)
+    assert Map.get(updated_karina_raw, :age) == nil
+  
+    {:ok, updated2} = EntityMap.put_attr(entity_map, :karina_jones, :names, nil)
+    assert EntityMap.get_attr(updated2, :karina_jones, :names) == MapSet.new([])
+    updated_karina_raw2 = Map.get(updated2.raw_data, 1)
+    assert Map.get(updated_karina_raw2, :name) == MapSet.new([])
+    
+    {:ok, updated3} = EntityMap.put_attr(entity_map, :bill_smith, :names, [])
+    assert EntityMap.get_attr(updated3, :bill_smith, :names) == MapSet.new([])
+    updated_bill_raw = Map.get(updated3.raw_data, 0)
+    assert Map.get(updated_bill_raw, :name) == MapSet.new([])
+    
+    {:ok, updated4} = EntityMap.put_attr(entity_map, :bill_smith, :names, MapSet.new([]), overwrite_collection: true)
+    assert EntityMap.get_attr(updated4, :bill_smith, :names) == MapSet.new([])
+    updated_bill_raw2 = Map.get(updated4.raw_data, 0)
+    assert Map.get(updated_bill_raw2, :name) == MapSet.new([])
+  end  
+  
+# TODO - TEST index_by - SHOULD INDEX ON RAW DATA; should have raw data
+# TODO - Test delete - when using aggregates, test that appropriate raw data map deletion happens.
 end
