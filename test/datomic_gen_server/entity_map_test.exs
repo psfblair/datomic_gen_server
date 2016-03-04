@@ -1330,8 +1330,7 @@ defmodule EntityMapTest do
     assert re_aggregated.inner_map == expected_inner_map
     assert re_aggregated.raw_data == entity_map.raw_data    
   end
-  
-  
+    
   test "can change the aggregate and index on an EntityMap" do
     d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
     d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
@@ -1356,7 +1355,34 @@ defmodule EntityMapTest do
     assert re_aggregated.raw_data == entity_map.raw_data    
   end
   
-# TODO - Test aggregation when a record doesn't have the fields for that entity
-# TODO - Test aggregate_by
-# TODO - Test multiple aggregation
+  test "does not include entries for entities that cannot be aggregated, but includes
+        entries for entities that have some of the attributes in the aggregate" do
+    d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+    d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+    d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+    d4 = %Datom{e: 1, a: :apellation, v: "Karina Jones", tx: 0, added: true}
+    d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+    d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+    d7 = %Datom{e: 2, a: :apellation, v: "Jim Stewart", tx: 0, added: true}
+    d8 = %Datom{e: 2, a: :senescence, v: 23, tx: 0, added: true}
+    # The id attribute is in the aggregate; this record has that attribute  
+    # without the key rename/translation, so it still goes in the aggregate
+    d9 = %Datom{e: 2, a: :id, v: :jim_stewart, tx: 0, added: true}
+    d10 = %Datom{e: 3, a: :apellation, v: "Hartley Stewart", tx: 0, added: true}
+    d11 = %Datom{e: 3, a: :senescence, v: 44, tx: 0, added: true}
+    d12 = %Datom{e: 3, a: :lookup, v: :hartley_stewart, tx: 0, added: true}
+    
+    result_struct = {TestPerson, %{identifier: :id, name: :names}}
+    entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12], 
+                    cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                    
+    expected_inner_map = %{
+      :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 32},
+      :karina_jones => %TestPerson{id: :karina_jones, names: MapSet.new(), age: 64},
+      :jim_stewart => %TestPerson{id: :jim_stewart, names: MapSet.new(), age: nil}
+    }
+    
+    assert entity_map.inner_map == expected_inner_map
+    assert entity_map.raw_data == entity_map.raw_data    
+  end
 end

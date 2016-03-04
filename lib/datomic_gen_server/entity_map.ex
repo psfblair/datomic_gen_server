@@ -26,6 +26,18 @@ defmodule DatomicGenServer.EntityMap do
   # This makes sure the null carries through if 
   # many values are being added for a given attribute, only one of which is null.
   
+  # AGGREGATION
+  # does not include entries for entities that cannot be aggregated, but includes
+  # entries for entities that have some of the attributes in the aggregate. Also,
+  # if the underlying raw data contains an attribute that is the same name as an
+  # attribute in the aggregate, that attribute will be aggregated and an entity
+  # will be present even if the attribute is supposed to be only for other entities
+  # where the attribute was renamed to that attribute.
+  
+  # You can filter maps using aggregators since anything failing the struct isn't included.
+  # You can take the same raw data and create multiple entities with different aggregators 
+  # to partition the result set.
+  
   defstruct raw_data: %{}, inner_map: %{}, 
             cardinality_many: MapSet.new(), index_by: nil, 
             aggregator: nil, aggregate_field_to_raw_attribute: %{}
@@ -51,7 +63,7 @@ defmodule DatomicGenServer.EntityMap do
     [ index_by: options[:index_by],
       cardinality_many: to_set(options[:cardinality_many]),
       aggregator: to_aggregator(options[:aggregate_into]),
-      aggregate_field_to_raw_attribute: invert_key_rename_map(options[:aggregate_into])
+      aggregate_field_to_raw_attribute: invert_attribute_translation_map(options[:aggregate_into])
     ]
   end
   
@@ -65,10 +77,6 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  # TODO Allow multiple aggregators
-  # TODO if struct fails the given attribute map is removed - the entity doesn't wind up in the aggregated map
-  # Document - you can filter maps using aggregators since anything failing the struct isn't included.
-  # Document - you can take the same raw data and create multiple entities with different aggregators to partition the result set.
   defp to_aggregator(aggregator_pair) do
     case aggregator_pair do
       {aggregate_struct, key_rename_map} ->
@@ -80,7 +88,7 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  defp invert_key_rename_map(aggregator_pair) do
+  defp invert_attribute_translation_map(aggregator_pair) do
     case aggregator_pair do
       {_, key_rename_map} ->
         key_rename_map
@@ -123,7 +131,7 @@ defmodule DatomicGenServer.EntityMap do
     raw_data_map = 
       data_tuples_to_add
       |> Enum.filter(fn(data_tuple) -> data_tuple.added end)
-      |> fold_into_record_map_with_null_markers(opts[:cardinality_many])
+      |> to_raw_data_map_with_null_markers(opts[:cardinality_many])
       |> filter_null_attributes(opts[:cardinality_many])
       |> filter_null_entities
       
@@ -147,24 +155,24 @@ defmodule DatomicGenServer.EntityMap do
   # If there is no value for an attribute, and the incoming value is nil, an
   # empty set, or an empty list, then that value is set to the empty tuple.
   # (DataTuples, unlike Datoms, may have collections as values for attributes.)
-  @spec fold_into_record_map_with_null_markers([DataTuple.t], MapSet.t) :: map
-  defp fold_into_record_map_with_null_markers(data_tuples, cardinality_set) do
+  @spec to_raw_data_map_with_null_markers([DataTuple.t], MapSet.t) :: map
+  defp to_raw_data_map_with_null_markers(data_tuples, cardinality_set) do
     List.foldl(data_tuples, %{}, 
       fn(data_tuple, accumulator) -> 
         updated_record = 
-          if existing_record = Map.get(accumulator, data_tuple.e) do
-            add_attribute_value(existing_record, data_tuple.a, data_tuple.v, cardinality_set)
+          if existing_entity_attributes = Map.get(accumulator, data_tuple.e) do
+            add_to_attribute_map(existing_entity_attributes, data_tuple.a, data_tuple.v, cardinality_set)
           else
-            new_record_for(data_tuple.e, data_tuple.a, data_tuple.v, cardinality_set)
+            new_attribute_map(data_tuple.e, data_tuple.a, data_tuple.v, cardinality_set)
           end
         Map.put(accumulator, data_tuple.e, updated_record)
       end)    
   end
 
-  @spec new_record_for(term, term, term, MapSet.t) :: map
-  defp new_record_for(entity_id, attr, value, cardinality_many) do
-    new_record = add_attribute_value(%{}, attr, value, cardinality_many)
-    add_attribute_value(new_record, e_key, entity_id, cardinality_many) 
+  @spec new_attribute_map(term, term, term, MapSet.t) :: map
+  defp new_attribute_map(entity_id, attr, value, cardinality_many) do
+    new_map = add_to_attribute_map(%{}, attr, value, cardinality_many)
+    add_to_attribute_map(new_map, e_key, entity_id, cardinality_many) 
   end
 
   # If we have multiple DataTuples, each with a scalar value for a cardinality many
@@ -173,30 +181,20 @@ defmodule DatomicGenServer.EntityMap do
   # case, since we are constructing a new EntityMap here, we shouldn't get more
   # than one DataTuple for that attribute of that entity. If by chance we do, 
   # we union it with the previous value.
-  @spec add_attribute_value(map, term, term, MapSet.t) :: map
-  defp add_attribute_value(attr_map, attr, value, cardinality_many) do
-
-    prior_value = initialize_if_needed(attr, Map.get(attr_map, attr), cardinality_many)
-    value_with_null_marker = with_null_marker(value)    
+  @spec add_to_attribute_map(map, term, term, MapSet.t) :: map
+  defp add_to_attribute_map(attr_map, attr, value, cardinality_many) do
+    old_value = initialize_if_needed(attr, Map.get(attr_map, attr), cardinality_many)
+    new_value = updated_attribute_value(old_value, with_null_marker(value))
     
-    # TODO This duplicates code on line 421
-    new_value = case {prior_value, value_with_null_marker} do
-      {_, {}} -> {}
-      {{}, _} -> {}
-      {%MapSet{}, [_|_]} -> MapSet.union(prior_value, MapSet.new(value_with_null_marker))
-      {%MapSet{}, %MapSet{}} -> MapSet.union(prior_value, value_with_null_marker)
-      {%MapSet{}, _} -> MapSet.put(prior_value, value_with_null_marker)
-      _ -> value_with_null_marker
-    end
-    
-    # We can't filter out the null markers until we get the final attribute map.
+    # We don't filter out the null markers here because they need to carry through
+    # the accumulated value and prevent additional attribute values from being added.
     Map.put(attr_map, attr, new_value)  
   end
   
   @spec initialize_if_needed(term, term, MapSet.t) :: term
-  defp initialize_if_needed(attr, prior_value, cardinality_many) do
-    if prior_value do
-      prior_value
+  defp initialize_if_needed(attr, prior_attribute_value, cardinality_many) do
+    if prior_attribute_value do
+      prior_attribute_value
     else
       if MapSet.member?(cardinality_many, attr) do MapSet.new() else nil end
     end
@@ -217,6 +215,18 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
+  @spec updated_attribute_value(term, term) :: term
+  defp updated_attribute_value(old_value, new_value) do
+    case {old_value, new_value} do
+      {{}, _} -> {}
+      {_, {}} -> {}
+      {%MapSet{}, %MapSet{}} -> MapSet.union(old_value, new_value)
+      {%MapSet{}, [_|_]} -> MapSet.union(old_value, MapSet.new(new_value))
+      {%MapSet{}, _} -> MapSet.put(old_value, new_value)    
+      _ -> new_value
+    end
+  end
+  
   @spec filter_null_attributes(map, MapSet.t) :: map
   defp filter_null_attributes(entity_id_to_attributes, cardinality_many) do 
     null_cardinality_many_attribute_to_empty_set = 
@@ -227,7 +237,7 @@ defmodule DatomicGenServer.EntityMap do
         end
       end
     
-    absent_cardinality_many_attribute_to_empty_set =
+    missing_cardinality_many_attribute_to_empty_set =
       fn(attr_map) ->
         cardinality_many
         |> MapSet.to_list
@@ -241,7 +251,7 @@ defmodule DatomicGenServer.EntityMap do
     handle_null_attributes = 
       fn(attr_map) ->
         attr_map
-        |> absent_cardinality_many_attribute_to_empty_set.()
+        |> missing_cardinality_many_attribute_to_empty_set.()
         |> Enum.map((&null_cardinality_many_attribute_to_empty_set.(&1)))
         |> Enum.filter((&is_non_null_attribute.(&1)))
         |> Enum.into(%{})
@@ -249,7 +259,7 @@ defmodule DatomicGenServer.EntityMap do
 
     entity_id_to_attributes |> Enum.map(
       fn({entity_id, attr_map}) -> 
-        {entity_id, handle_null_attributes.(attr_map)} 
+        { entity_id, handle_null_attributes.(attr_map) } 
       end)
   end
   
@@ -264,7 +274,7 @@ defmodule DatomicGenServer.EntityMap do
   defp empty_entity?(attr_map) do
     attr_map
     |> Map.delete(e_key)
-    |> Enum.filter(fn({attr, value}) ->     
+    |> Enum.filter(fn({_, value}) ->     
         case value do
           %MapSet{} -> if MapSet.size(value) == 0 do false else true end
           _ -> true
@@ -346,15 +356,15 @@ defmodule DatomicGenServer.EntityMap do
 
     raw_data_map_with_retractions =
       data_tuples_to_retract
-      |> fold_into_record_map_with_null_markers(entity_map.cardinality_many)
+      |> to_raw_data_map_with_null_markers(entity_map.cardinality_many)
       |> Enum.reduce(entity_map.raw_data, &retract/2)
       |> filter_null_attributes(entity_map.cardinality_many)
       |> filter_null_entities
 
     raw_data_map_with_all_changes =
       data_tuples_to_add
-      |> fold_into_record_map_with_null_markers(entity_map.cardinality_many)
-      |> Enum.reduce(raw_data_map_with_retractions, &add/2)
+      |> to_raw_data_map_with_null_markers(entity_map.cardinality_many)
+      |> Enum.reduce(raw_data_map_with_retractions, &merge_with_new_values/2)
       |> filter_null_attributes(entity_map.cardinality_many)
       |> filter_null_entities
 
@@ -422,26 +432,11 @@ defmodule DatomicGenServer.EntityMap do
     end
   end 
   
-  @spec add({term, map}, map) :: map
-  defp add({entity_id, attributes_to_add}, entity_map) do
-    
+  @spec merge_with_new_values({term, map}, map) :: map
+  defp merge_with_new_values({entity_id, attributes_to_add}, entity_map) do
     existing_attributes = Map.get(entity_map, entity_id) || %{}
-    
-    # If the value to add is nil, it has already been changed to the null marker {}.
-    # TODO This duplicates code on line 183
-    merge_fn = fn(_, old_value, new_value) ->      
-      case {old_value, new_value} do
-        {{}, _} -> {}
-        {_, {}} -> {}
-        {%MapSet{}, %MapSet{}} -> MapSet.union(old_value, new_value)
-        {%MapSet{}, [_|_]} -> MapSet.union(old_value, MapSet.new(new_value))
-        {%MapSet{}, _} -> MapSet.put(old_value, new_value)    
-        _ -> new_value
-      end
-    end
-    
+    merge_fn = fn(_, old_value, new_value) -> updated_attribute_value(old_value, new_value) end
     new_attr_map = Map.merge(existing_attributes, attributes_to_add, merge_fn)
-      
     Map.put(entity_map, entity_id, new_attr_map)
   end
 
@@ -503,7 +498,7 @@ defmodule DatomicGenServer.EntityMap do
   @spec aggregate_by(EntityMap.t, aggregate, term) :: EntityMap.t
   def aggregate_by(entity_map, aggregate, new_index \\ nil) do
     new_aggregator = to_aggregator(aggregate)
-    new_aggregate_field_to_raw_attribute = invert_key_rename_map(aggregate)
+    new_aggregate_field_to_raw_attribute = invert_attribute_translation_map(aggregate)
 
     new_inner_map = 
       entity_map.raw_data
@@ -545,6 +540,7 @@ defmodule DatomicGenServer.EntityMap do
   end
 
   # TODO Deletes the entries for all of the given keys from the map.
+  #
   # drop(entity_map, entity_keys)
 
   # Checks if two EntityMaps contain equal data. Their index_by and aggregator
@@ -617,7 +613,8 @@ defmodule DatomicGenServer.EntityMap do
                }
   end
   
-  # Removes nil keys
+  # Removes nil keys, so entities that don't have the index attribute don't show
+  # up in the map.
   @spec index_map_by(map, term) :: map
   defp index_map_by(entity_mapping, attribute) do
     entity_mapping
@@ -634,7 +631,7 @@ defmodule DatomicGenServer.EntityMap do
       raw_data_index_attr = to_raw_attribute(entity_map, entity_map.index_by)      
       
       {entity_id, _} = 
-        Enum.find(entity_map.raw_data, fn({entity_id, attributes}) -> 
+        Enum.find(entity_map.raw_data, fn({_, attributes}) -> 
           Map.get(attributes, raw_data_index_attr) == index_key 
         end)
         
@@ -714,8 +711,13 @@ defmodule DatomicGenServer.EntityMap do
     Map.values(entity_map.inner_map)
   end
   
+  ####################################################################################
   
-  # TODO Additional possibilities for the future:
+  # FUTURE POSSIBILITIES:
+  
+  # Allow multiple aggregators so that entities of different types can exist
+  # in the same map.
+
 
   # Returns a new EntityMap containing a subset of the original EntityMap's data,
   # according to the filter function, which takes a key/aggregate pair and returns true or false.
