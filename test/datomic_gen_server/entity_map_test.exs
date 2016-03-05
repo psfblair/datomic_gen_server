@@ -881,7 +881,7 @@ defmodule EntityMapTest do
     assert result.inner_map == expected_inner_map
   end
     
-  test "updating an EntityMap with records preserves indexing and aggregation" do
+  test "updating an EntityMap with records preserves, indexing, aggregation, and unchanged attribute values" do
     d1 = %{eid: 1, unique_name: :bill_smith , name: "Bill Smith", age: 32}
     d2 = %{eid: 1, unique_name: :bill_smith, name: "William Smith", age: 32}
     d3 = %{eid: 2, unique_name: :karina_jones, name: ["Karina Jones", "Karen Jones"], age: 64}
@@ -896,7 +896,7 @@ defmodule EntityMapTest do
     d6 = %{eid: 1, unique_name: :bill_smith , name: "Bill Smith", age: 33}
     d7 = %{eid: 2, unique_name: :karina_jones, name: MapSet.new(["Karen Jones"]), age: 64}
     d8 = %{eid: 3, unique_name: nil, name: [], age: nil}
-    d9 = %{eid: 4, unique_name: :hartley_stewart, name: ["Hartley Stewart", "H. Stewart"], age: 44}
+    d9 = %{eid: 4, unique_name: :hartley_stewart, name: ["Hartley Stewart", "H. Stewart"]}
     
     expected_inner_map = %{
       :bill_smith => %TestPerson{id: :bill_smith, names: MapSet.new(["Bill Smith"]), age: 33},
