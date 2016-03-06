@@ -172,7 +172,7 @@ defmodule DatomicGenServer.EntityMap do
   end
 
   @doc """
-  Create a new `EntityMap` from a list of `DataTuple`s. An `EntityMap` acts as a
+  Creates a new `EntityMap` from a list of `DataTuple`s. An `EntityMap` acts as a
   map of an entity id (or attribute value) to a map of an entity's attributes.
   
   The supplied data tuples may have the value `true` or `false` for the `added`
@@ -406,7 +406,7 @@ defmodule DatomicGenServer.EntityMap do
   end
 
   @doc """
-  Create a new `EntityMap` from a list of records. A record is a map of attribute 
+  Creates a new `EntityMap` from a list of records. A record is a map of attribute 
   names to values. 
   
   One of those attribute keys must point to the entity's primary key -- i.e., 
@@ -473,9 +473,8 @@ defmodule DatomicGenServer.EntityMap do
     |> new(options)
   end
 
-  
   @doc """
-  Create a new `EntityMap` from a list of rows. A row is a simple list of 
+  Creates a new `EntityMap` from a list of rows. A row is a simple list of 
   attribute values. The header (second parameter) supplies a list of the attribute 
   names for these values.
   
@@ -543,13 +542,78 @@ defmodule DatomicGenServer.EntityMap do
     Enum.map(rows, fn(row) -> Enum.zip(header, row) |> Enum.into(%{})  end)
   end
   
+  @doc """
+  Creates a new `EntityMap` from the datoms in a `DatomicTransaction`. These and 
+  the options are passed to the `new` function (see the documentation on that
+  function).
+  
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d5 = %Datom{e: 3, a: :name, v: "Hartley Stewart", tx: 0, added: false}
+      d6 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
+      d7 = %Datom{e: 3, a: :identifier, v: :hartley_stewart, tx: 0, added: false}
+       
+      transaction = %DatomicTransaction{
+        basis_t_before: 1000, 
+        basis_t_after: 1001, 
+        added_datoms: [d1, d2, d3], 
+        retracted_datoms: [d5, d6, d7], 
+        tempids: %{-1432323 => 64}
+      }
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+        
+      result = EntityMap.from_transaction(transaction, 
+                cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+                
+      EntityMap.get_attr(result, :bill_smith, :age)
+        => 32
+  
+  """
   @spec from_transaction(DatomicTransaction.t, [entity_map_option]) :: EntityMap.t
   def from_transaction(transaction, options \\ []) do
     new(transaction.added_datoms, options)
   end
   
-  # NOTE - INDEXING HAPPENS ON THE ATTRIBUTE IN THE STRUCT, NOT IN THE INCOMING
-  # ATTRIBUTES. CARDINALITY MANY IS A NAME OF AN INCOMING ATTRIBUTE
+  @doc """
+  Returns an `EntityMap` created from an existing `EntityMap` and a list of data 
+  tuples (both retractions and additions).
+  
+  Retractions are applied first. Nil or empty collection values in the data
+  tuples to be retracted result in the entire pre-existing value being retracted.
+  For cardinality many attributes, scalar values to be retracted are removed from
+  the set of pre-existing values; collection values to be retracted are subtracted
+  from the pre-existing set.
+  
+  Similarly, the addition of `nil` or an empty collection removes the attribute
+  (for a scalar value) or sets it to the empty collection (for a cardinality
+  many value). Otherwise, for cardinality many attributes, scalar values to be
+  added are added to the set of pre-existing values; collection values to be
+  added are unioned with the pre-existing set.
+  
+  After retractions and additions are applied, the map is re-aggregated and 
+  re-indexed according to its aggregator and index (if any).
+
+## Example
+
+      empty_map = EntityMap.new()
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+
+      datoms_to_update = [d1, d2, d3, d4]
+
+      result = EntityMap.update(empty_map, datoms_to_update)
+
+      EntityMap.get_attr(result, 0, :age)
+        => 32
+  
+  """
   @spec update(EntityMap.t, [DataTuple.t]) :: EntityMap.t
   def update(entity_map, data_tuples_to_update) do
     {data_tuples_to_add, data_tuples_to_retract} = 
@@ -599,16 +663,7 @@ defmodule DatomicGenServer.EntityMap do
   # subtracted if it's a set of values.
   # Passing in a nil value or an empty collection results in any pre-existing value
   # for that attribute being retracted.
-    
-  # Will only retract the value if the map contains that value for that attribute.
-  # For maps, regardless of the current value of the attribute, you can also
-  # pass in a nil value or an empty collection to to remove the attribute key from 
-  # the map. Datomic datoms won't ever come back with nil or [] values so it's
-  # ok to use these in a struct to signify empty values, since there's never nils
-  # in the database. (This is mainly for use with records.)
-  # When retracting from an attribute with cardinality many, the value is
-  # removed from the Set of values if it's one value, or the set of values
-  # subtracted if it's a set of values.
+  # We will only retract the value if the map contains that value for that attribute.
   # If the :"datom/e" key is in the map, we don't remove it. Other indexed
   # attributes will be removed if they are in the map to be retracted.
   defp remove_attribute_value({attr, value}, attr_map) do
@@ -641,23 +696,39 @@ defmodule DatomicGenServer.EntityMap do
     Map.put(entity_map, entity_id, new_attr_map)
   end
 
-  # A record is a map of attribute names to values. One of those attribute keys 
-  # must point to the entity primary key -- i.e., the same value that would appear
-  # in the `e` value of a corresponding datom or DataTuple. This attribute should be passed to 
-  # the function as the third argument.
-  # The records will be converted to DataTuples with the e: field being the value
-  # of the entity identifier. The update function taking a DataTuple list will then
-  # be called with the result.
-  # NOTE For cardinality many attributes you have two choices:
-  # 1) You may have a set or list as the value of the attribute in the record map
-  # 2) You may have multiple records with individual values or partial collections
-  # IN EITHER CASE the final attribute value will be the union of all the 
-  # attribute values passed in, and it will REPLACE any existing value for that
-  # attribute. In other words, you have to have the complete collection of values
-  # for that attribute; there is no way to partially update a cardinality many 
-  # attribute value using record syntax.
-  # NOTE - INDEXING HAPPENS ON THE ATTRIBUTE IN THE STRUCT, NOT IN THE INCOMING
-  # ATTRIBUTES. CARDINALITY MANY IS A NAME OF AN INCOMING ATTRIBUTE
+  @doc """
+  Returns an `EntityMap` created from an existing `EntityMap` and a list of  
+  records. A record is a map of attribute names to values. One of those attribute 
+  keys must point to the entity primary key -- i.e., the same value that would 
+  appear in the `e` value of a corresponding datom or DataTuple. This attribute 
+  should be passed to the function as the third argument.
+  
+  The use of `nil` or an empty collection as a value for an attribute removes the 
+  attribute (for a scalar value) or sets it to the empty collection (for a 
+  cardinality many attribute). Otherwise, any attribute value supplied in a record 
+  overwrites the pre-existing value for that attribute; there is no way to 
+  add entries to or subtract them from a cardinality many attribute value using  
+  records.
+  
+  After the map is updated with the new records, it is re-aggregated and re-indexed
+  according to the map's aggregator and index (if any).
+
+## Example
+
+      d1 = %{id: 1, attr1: [:value1, :value1a]}
+      d2 = %{id: 2, attr2: [:value2]}
+
+      initial_map = EntityMap.from_records([d1, d2], :id, cardinality_many: [:attr1])
+
+      d5 = %{id: 1, attr1: []}
+      d6 = %{id: 2, attr2: :value2a}
+
+      result = EntityMap.update_from_records(initial_map, [d5, d6], :id)
+
+      EntityMap.get_attr(result, 2, :attr2)
+        => :value2a
+  
+  """  
   @spec update_from_records(EntityMap.t, Enum.t, term) :: EntityMap.t
   def update_from_records(entity_map, record_maps, primary_key) do
 
@@ -680,12 +751,91 @@ defmodule DatomicGenServer.EntityMap do
     update(entity_map, data_tuples)
   end
   
+  @doc """
+  Returns an `EntityMap` created from an existing `EntityMap` and a list of  
+  rows. A row is a simple list of attribute values. The header (third parameter) 
+  supplies a list of the attribute names for these values.
+  
+  One of those attribute keys must point to the entity's primary key -- i.e., 
+  the same value that would appearin the `e` value of a corresponding datom or 
+  `DataTuple`. This key should be supplied as the fourth parameter to the function.
+  
+  The use of `nil` or an empty collection as a value for an attribute removes the 
+  attribute (for a scalar value) or sets it to the empty collection (for a 
+  cardinality many attribute). Otherwise, any attribute value supplied in a record 
+  overwrites the pre-existing value for that attribute; there is no way to 
+  add entries to or subtract them from a cardinality many attribute value using  
+  records.
+  
+  After the map is updated with the new records, it is re-aggregated and re-indexed
+  according to the map's aggregator and index (if any).
+
+## Example
+
+      header = [:eid, :unique_name, :name, :age]
+
+      d1 = [1, :bill_smith, "Bill Smith", 32]
+      d2 = [2, :karina_jones, ["Karina Jones", "Karen Jones"], 64]
+
+      result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+      initial_map = EntityMap.from_rows([d1, d2], header, :eid, 
+                      cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+
+      d3 = [1, :bill_smith, "Bill Smith", 33]
+      d4 = [2, :karina_jones, MapSet.new(["Karen Jones"]), 64]
+
+      result = EntityMap.update_from_rows(initial_map, [d3, d4], header, :eid)
+
+      EntityMap.get_attr(result, :karina_jones, :names)
+        => #MapSet<["Karen Jones"]>
+  
+  """  
   @spec update_from_rows(EntityMap.t, [list] | MapSet.t, list, term) :: EntityMap.t
   def update_from_rows(entity_map, rows_to_add, header, primary_key) do
     records_to_add = rows_to_records(rows_to_add, header)
     update_from_records(entity_map, records_to_add, primary_key)
   end
+
+  @doc """
+  Returns an `EntityMap` created from an existing `EntityMap` and the datoms in    
+  a `DatomicTransaction`.  These are passed to the `update` function (see the 
+  documentation on that function).
+
+## Example
+
+      header = [:eid, :unique_name, :name, :age]
+
+      d1 = [0, :bill_smith, "Bill Smith", 32]
+      d2 = [1, :karina_jones, ["Karina Jones", "Karen Jones"], 64]
+
+      result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+      initial_map = EntityMap.from_rows([d1, d2], header, :eid, 
+                      cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+
+      d3 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: false}
+      d4 = %Datom{e: 1, a: :name, v: "Karen Jones", tx: 0, added: false}
+    
+      d5 = %Datom{e: 1, a: :name, v: "K. Jones", tx: 0, added: true}
+      d6 = %Datom{e: 2, a: :name, v: "Hartley Stewart", tx: 0, added: true}
+      d7 = %Datom{e: 2, a: :age, v: 44, tx: 0, added: true}
+      d8 = %Datom{e: 2, a: :unique_name, v: :hartley_stewart, tx: 0, added: true}
+      
+      transaction = %DatomicTransaction{
+        basis_t_before: 1000, 
+        basis_t_after: 1001, 
+        retracted_datoms: [d3, d4], 
+        added_datoms: [d5, d6, d7, d8], 
+        tempids: %{-1432323 => 64}
+      }
+      
+      result = EntityMap.update_from_transaction(initial_map, transaction)
+
+      EntityMap.get(result, :karina_jones)
+        => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones", "K. Jones"]), age: 64}
   
+  """    
   @spec update_from_transaction(EntityMap.t, DatomicTransaction.t) :: EntityMap.t
   def update_from_transaction(entity_map, transaction) do
     all_datoms = transaction.retracted_datoms ++ transaction.added_datoms
