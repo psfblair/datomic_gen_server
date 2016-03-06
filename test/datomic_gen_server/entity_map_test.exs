@@ -34,6 +34,7 @@ defmodule EntityMapTest do
     }
     
     expected_entity_map = %EntityMap{
+      raw_data: expected_inner_map,
       inner_map: expected_inner_map,
       index_by: nil,
       cardinality_many: MapSet.new(),
@@ -48,7 +49,6 @@ defmodule EntityMapTest do
     assert EntityMap.equal?(actual, expected_entity_map)
   end
   
-  # TODO Equal inner maps or equal raw data, or both?
   test "two EntityMaps containing equal data are equal" do
     d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
     d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
@@ -1384,5 +1384,13 @@ defmodule EntityMapTest do
     
     assert entity_map.inner_map == expected_inner_map
     assert entity_map.raw_data == entity_map.raw_data    
+  end
+  
+  test "can rename keys in a map" do
+    input_map = %{eid: 1, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
+    translation_table = %{eid: :id, identifier: :unique_name}
+    
+    result = EntityMap.rename_keys(input_map, translation_table)
+    assert result == %{id: 1, unique_name: :jim_stewart, name: "Jim Stewart", age: 23}
   end
 end

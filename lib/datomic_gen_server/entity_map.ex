@@ -218,11 +218,10 @@ defmodule DatomicGenServer.EntityMap do
       d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
       d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
 
-      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6])
+      entity_map = EntityMap.new([d1, d2, d3, d4])
 
       EntityMap.get_attr(entity_map, 1, :attr2)
-
-      => :value3
+        => :value3
 
   """
   @spec new([DataTuple.t], [entity_map_option]) :: EntityMap.t
@@ -444,6 +443,7 @@ defmodule DatomicGenServer.EntityMap do
   `EntityMap`.
 
   ## Example
+  
         d1 = %{eid: 1, unique_name: :bill_smith, name: "Bill Smith", age: 32}
         d2 = %{eid: 2, unique_name: :karina_jones, name: "Karina Jones", age: 64}
         
@@ -455,8 +455,7 @@ defmodule DatomicGenServer.EntityMap do
                       aggregate_into: result_struct)
 
         EntityMap.get(entity_map, :karina_jones)
-
-          => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64}
+          => %TestPerson{age: 64, id: :karina_jones, names: #MapSet<["Karina Jones"]>}
 
   """  
   @spec from_records([map] | MapSet.t, term, [entity_map_option]) :: EntityMap.t
@@ -526,8 +525,7 @@ defmodule DatomicGenServer.EntityMap do
                       aggregate_into: result_struct)
 
         EntityMap.get(entity_map, :karina_jones)
-
-          => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones"]), age: 64}
+          => %TestPerson{age: 64, id: :karina_jones, names: #MapSet<["Karina Jones"]>}
 
   """  
   @spec from_rows([list] | MapSet.t, list, term, [entity_map_option]) :: EntityMap.t
@@ -833,7 +831,7 @@ defmodule DatomicGenServer.EntityMap do
       result = EntityMap.update_from_transaction(initial_map, transaction)
 
       EntityMap.get(result, :karina_jones)
-        => %TestPerson{id: :karina_jones, names: MapSet.new(["Karina Jones", "K. Jones"]), age: 64}
+        => %TestPerson{age: 64, id: :karina_jones, names: #MapSet<["K. Jones", "Karina Jones"]>}
   
   """    
   @spec update_from_transaction(EntityMap.t, DatomicTransaction.t) :: EntityMap.t
@@ -844,8 +842,43 @@ defmodule DatomicGenServer.EntityMap do
   
   # Map functions
   
-  # Make sure that the index exists in the new aggregate! Defaults to the old
-  # index.
+  @doc """
+  Returns an `EntityMap` containing the same underlying data as the supplied
+  `EntityMap`, but with the entity attributes contained in the given struct.
+  The optional third argument is an atom representing the name of one of the 
+  fields in the struct, whose values will be the keys in the returned `EntityMap`.
+  
+  The second argument, an "aggregate", is a pair whose first element is a 
+  module (i.e., the name of a struct), and whose second element is a map 
+  for translating the keys of the underlying un-aggregated attributes into
+  fields of the struct. The translation map only requires entries for fields
+  that need to be translated; fields having the same name as the underlying
+  attribute keys do not need to be in the translation table.
+  
+  By default the returned `EntityMap` uses the same index as the supplied 
+  `EntityMap`; if you do not supply an index key, be sure the existing index
+  key is a field in the new struct as well.
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+      d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                      cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+      new_result_struct = {TestPerson2, %{identifier: :id}}
+      re_aggregated = EntityMap.aggregate_by(entity_map, new_result_struct)
+      
+      EntityMap.get(re_aggregated, :karina_jones)
+        => %TestPerson2{age: 64, id: :karina_jones}
+
+  """
   @spec aggregate_by(EntityMap.t, aggregate, term) :: EntityMap.t
   def aggregate_by(entity_map, aggregate, new_index \\ nil) do
     new_aggregator = to_aggregator(aggregate)
@@ -866,9 +899,26 @@ defmodule DatomicGenServer.EntityMap do
 
   end
   
-  # Deletes the entry in the EntityMap for a specific index key. If the EntityMap 
-  # is not indexed, the entity ID is used. If the key does not exist, returns the 
-  # map unchanged.
+  @doc """
+  Returns an `EntityMap` which is the supplied `EntityMap` with the entry for a 
+  specific index key deleted. If the `EntityMap` is not indexed, the entity ID is 
+  used. If the key does not exist, the `EntityMap` is returned unchanged.
+
+## Example
+
+      d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+      d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: true}
+
+      entity_map = EntityMap.new([d1, d2, d3, d4])
+
+      result = EntityMap.delete(entity_map, 0)
+
+      EntityMap.get(result, 0)
+        => nil
+
+  """
   @spec delete(map, term) :: EntityMap.t
   def delete(entity_map, index_key) do
     map_entry = get(entity_map, index_key)
@@ -894,11 +944,28 @@ defmodule DatomicGenServer.EntityMap do
   #
   # drop(entity_map, entity_keys)
 
-  # Checks if two EntityMaps contain equal data. Their index_by and aggregator
-  # are ignored.
+  @doc """
+  Returns true if two EntityMaps contain equal aggregated data maps as well as 
+  the same underlying data.
+
+## Example
+
+      d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+      d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+
+      new_map = EntityMap.new([d1, d2, d3, d4])
+      new_map2 = EntityMap.new([d1, d2, d3, d4])
+      
+      EntityMap.equal?(new_map, new_map2)
+        => true
+        
+  """
   @spec equal?(EntityMap.t, EntityMap.t) :: boolean
   def equal?(entity_map1, entity_map2) do
-    Map.equal?(entity_map1.inner_map, entity_map2.inner_map)
+    Map.equal?(entity_map1.inner_map, entity_map2.inner_map) &&
+      Map.equal?(entity_map1.raw_data, entity_map2.raw_data)
   end
 
   # TODO Fetches the value for a specific entity key and returns it in a tuple
@@ -919,19 +986,49 @@ defmodule DatomicGenServer.EntityMap do
   #
   # fetch_attr!(entity_map, entity_key, attr_key)
 
-  # Gets the value for a specific index key. If the EntityMap is not indexed, the 
-  # entity ID is used. If the key does not exist, returns the default value
-  # (or nil if there is no default value).
+  @doc """
+  Returns the value for a specific index key. If the key is not present, returns 
+  the default value (or nil if there is no default value).
+  
+  If the `EntityMap` is not indexed, the supplied key should be an entity ID. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+      entity_map = EntityMap.new([d1, d2])
+
+      EntityMap.get(entity_map, 0)
+        => %{attr1: :value, attr2: :value2, "datom/e": 0}
+
+  """
+  # 
   @spec get(EntityMap.t, term, term) :: term
   def get(entity_map, index_key, default \\ nil) do
     Map.get(entity_map.inner_map, index_key, default)
   end
   
-  # Gets the value for a specific index key and attribute key. If the EntityMap 
-  # is not indexed, the entity ID is used as the index. If the EntityMap is
-  # aggregated, the attribute key is the name of the field in the aggregated
-  # struct; the attribute names in the raw data are not used. If either key does 
-  # not exist, the default value is returned (or nil if there is no default value).
+  @doc """
+  Returns the value for a specific index key and attribute key.  If either key is
+  not present in the `EntityMap` the default value is returned (or nil if no 
+  default value is supplied).
+  
+  If the `EntityMap` is not indexed, the supplied key should be an entity ID. If 
+  the `EntityMap` is aggregated, the attribute key is the name of the field in 
+  the aggregated struct; the attribute names in the raw data are not referenced.
+
+## Example
+
+      d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+      entity_map = EntityMap.new([d1, d2])
+
+      EntityMap.get_attr(entity_map, 0, :attr2)
+        => :value2
+
+  """
   @spec get_attr(EntityMap.t, term, term, term) :: term
   def get_attr(entity_map, index_key, attr_key, default \\ nil) do
     entity = Map.get(entity_map.inner_map, index_key)
@@ -942,19 +1039,58 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
   
-  # Returns whether a given index key exists in the given map
+  @doc """
+  Returns a boolean indicating whether a given index key exists in the supplied 
+  `EntityMap`.
+
+## Example
+
+      d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+      entity_map = EntityMap.new([d1, d2])
+
+      EntityMap.has_key?(entity_map, 1)
+        => false
+        
+  """
   @spec has_key?(EntityMap.t, term) :: boolean
   def has_key?(entity_map, index_key) do
     Map.has_key?(entity_map.inner_map, index_key)
   end
   
-  # Creates a new EntityMap whose keys are values of a certain attribute or 
-  # struct field rather than the entity IDs.
-  # Assumes that the value you are indexing on is unique, otherwise you will lose
-  # entities. If a value for the attribute is not present in the attribute map/struct,
-  # it will go into the entity map with a key of nil.
-  # index_by is applied after your aggregator, so you can use the name of a field
-  # in your struct. If a field in the data_tuples isn't in the struct, you can't index by it.
+  @doc """
+  Returns a new EntityMap whose keys are values of a certain attribute or struct 
+  field rather than the entity IDs.
+  
+  If a given entity does not have a value for the index attribute, that entity
+  will not be accessible in the indexed `EntityMap`. This function is applied 
+  post-aggregation, so you can use the name of a field in your struct. If there
+  is a field in the underlying data that is not a field on the aggregating struct, 
+  you cannot use it as an index.
+  
+  This function also assumes that the value you are indexing on is unique; otherwise, 
+  you will lose entities if more than one has the same attribute. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+      d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                      cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                      
+      re_indexed = EntityMap.index_by(entity_map, :age)
+
+      EntityMap.get(re_indexed, 64)
+        => %TestPerson{age: 64, id: :karina_jones, names: #MapSet<["Karina Jones"]>}
+        
+  """
   @spec index_by(EntityMap.t, term) :: EntityMap.t
   def index_by(entity_map, attribute) do
     new_inner = entity_map.inner_map |> index_map_by(attribute)
@@ -1004,7 +1140,24 @@ defmodule DatomicGenServer.EntityMap do
     end
   end
 
-  # Returns all index keys from the map, in a list.
+  @doc """
+  Returns all index keys from the map, in a list. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+      d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], index_by: :identifier)
+
+      EntityMap.keys(entity_map)
+        => [:bill_smith, :karina_jones]
+
+  """
   @spec keys(EntityMap.t) :: [term]
   def keys(entity_map) do
     Map.keys(entity_map.inner_map)
@@ -1014,21 +1167,68 @@ defmodule DatomicGenServer.EntityMap do
   #
   # pop(entity_map, entity_key, default \\ nil)
 
-  # Returns an EntityMap with the given entity added. Requires that the entity 
-  # be in the form of a map of attributes to values, including the entity id 
-  # (not just the index key). The key of the field containing the entity id 
-  # should be passed as the third argument. If an entity already exists for that
-  # ID, it will be replaced with the new one.
+  @doc """
+  Returns an EntityMap with the given entity added. The supplied entity must
+  be in the form of a map of attributes to values, including one attribute that
+  specifies the entity ID (i.e., a value that would appear in the `e:` field of
+  a `Datom` or `DataTuple`). 
+  
+  The key of the field containing the entity ID should be passed to the function
+  as the third argument. If an entity already exists for a given ID, it will be 
+  replaced with the new one. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+      entity_map = EntityMap.new([d1, d2, d3], 
+                      cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+      new_record = %{eid: 1, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
+
+      result = EntityMap.put(entity_map, new_record, :eid)
+      
+      EntityMap.get(result, :jim_stewart)
+        => %TestPerson{age: 23, id: :jim_stewart, names: #MapSet<["Jim Stewart"]>}
+        
+  """
   @spec put(EntityMap.t, map, term) :: EntityMap.t
   def put(entity_map, record, primary_key) do
     update_from_records(entity_map, [record], primary_key)
   end
   
-  # Returns an EntityMap with an updated value for a given entity and attribute.
-  # If the EntityMap is not indexed, the the index key should be the entity ID. 
-  # If the EntityMap is aggregated, the attribute key is the name of the field in 
-  # the aggregated struct; the attribute names in the raw data are not used. 
-  # If either key does not exist, ...?
+  @doc """
+  When successful, returns an `:ok` tuple containing an `EntityMap` with an updated 
+  value for a given entity's attribute, where the entity is specified by its index 
+  key. If either the index or attribute key does not exist, an `:error` tuple is
+  returned.
+  
+  If the `EntityMap` is not indexed, the the index key should be the entity ID. 
+  If the `EntityMap` is aggregated, the attribute key should the name of the field 
+  in the aggregated struct; the attribute names in the raw data are not used. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+      d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                      cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+                      
+      {:ok, updated} = EntityMap.put_attr(entity_map, :karina_jones, :age, 34)
+
+      EntityMap.get_attr(updated, :karina_jones, :age)
+        => 34
+        
+  """
   @spec put_attr(EntityMap.t, term, term, term, [{atom, boolean}]) :: {:ok, EntityMap.t} | {:error, String.t}
   def put_attr(entity_map, index_key, attr_key, val, options \\ []) do
     entity_id = entity_id_from_index(entity_map, index_key)
@@ -1052,8 +1252,20 @@ defmodule DatomicGenServer.EntityMap do
   #
   # put_new(entity_map, entity_key, value)
   
-  # Utility function: Pass in a map and another map from keys to new keys.
-  @spec rename_keys(map, map) :: EntityMap.t
+  @doc """
+  A utility function that accepts a map and a translation table, and returns a
+  new map whose keys have been renamed according to the translation table. 
+
+## Example
+
+      input_map = %{eid: 1, identifier: :jim_stewart, name: "Jim Stewart", age: 23}
+      translation_table = %{eid: :id, identifier: :unique_name}
+
+      EntityMap.rename_keys(input_map, translation_table)
+        => %{age: 23, id: 1, name: "Jim Stewart", unique_name: :jim_stewart}
+        
+  """
+  @spec rename_keys(map, map) :: map
   def rename_keys(map, key_rename_map) do
     Enum.map(map, fn({k,v}) ->             
       new_name = Map.get(key_rename_map, k)
@@ -1062,7 +1274,27 @@ defmodule DatomicGenServer.EntityMap do
     |> Enum.into(%{})                          
   end
   
-  # Returns all entities from the EntityMap
+  @doc """
+  Returns all entities from the EntityMap, in a list. 
+
+## Example
+
+      d1 = %Datom{e: 0, a: :name, v: "Bill Smith", tx: 0, added: true}
+      d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+      d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+      d4 = %Datom{e: 1, a: :name, v: "Karina Jones", tx: 0, added: true}
+      d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+      d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+      result_struct = {TestPerson, %{identifier: :id, name: :names}}
+      entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                      cardinality_many: :name, aggregate_into: result_struct)
+                  
+      EntityMap.values(entity_map)
+        => [%TestPerson{age: 32, id: :bill_smith, names: #MapSet<["Bill Smith"]>},
+            %TestPerson{age: 64, id: :karina_jones, names: #MapSet<["Karina Jones"]>}]
+            
+  """
   @spec values(EntityMap.t) :: [term]
   def values(entity_map) do
     Map.values(entity_map.inner_map)
