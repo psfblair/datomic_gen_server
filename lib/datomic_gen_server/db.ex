@@ -848,6 +848,7 @@ defmodule DatomicGenServer.Db do
     try do
       {added_datoms, retracted_datoms} = tx_data(transaction_result) |> to_datoms
       transaction_struct = %DatomicTransaction{
+                              tx_id: tx_data(transaction_result) |> transaction_id,
                               basis_t_before: basis_t_before(transaction_result), 
                               basis_t_after: basis_t_after(transaction_result), 
                               added_datoms: added_datoms, 
@@ -857,13 +858,6 @@ defmodule DatomicGenServer.Db do
     rescue
       e -> {:error, e}
     end
-  end
-  
-  @spec to_datoms([datom_map]) :: {[Datom.t], [Datom.t]}
-  defp to_datoms(datom_maps) do
-    datom_maps
-    |> Enum.map(fn(datom_map) -> struct(Datom, datom_map) end) 
-    |> Enum.partition(fn(datom) -> datom.added end)
   end
   
   @spec basis_t_before(%{:"db-before" => %{:"basis-t" => integer}}) :: integer
@@ -879,6 +873,19 @@ defmodule DatomicGenServer.Db do
   @spec tx_data(%{:"tx-data" => [datom_map]}) :: [datom_map]
   defp tx_data(%{:"tx-data" => tx_data}) do
     tx_data
+  end
+  
+  @spec to_datoms([datom_map]) :: {[Datom.t], [Datom.t]}
+  defp to_datoms(datom_maps) do
+    datom_maps
+    |> Enum.map(fn(datom_map) -> struct(Datom, datom_map) end) 
+    |> Enum.partition(fn(datom) -> datom.added end)
+  end
+  
+  @spec transaction_id([datom_map]) :: integer
+  defp transaction_id(datom_maps) do
+    %{tx: id} = datom_maps |> hd
+    id
   end
   
   @spec tempids(%{tempids: %{integer => integer}}) :: %{integer => integer}
