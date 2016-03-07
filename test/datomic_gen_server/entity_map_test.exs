@@ -252,6 +252,7 @@ defmodule EntityMapTest do
     retracted_datoms = [d6, d7, d9, d11, d12, d13]
      
     transaction = %DatomicTransaction{
+      tx_id: 0,
       basis_t_before: 1000, 
       basis_t_after: 1001, 
       added_datoms: added_datoms, 
@@ -967,6 +968,7 @@ defmodule EntityMapTest do
     d14 = %Datom{e: 3, a: :identifier, v: :hartley_stewart, tx: 0, added: true}
     
     transaction = %DatomicTransaction{
+      tx_id: 0,
       basis_t_before: 1000, 
       basis_t_after: 1001, 
       retracted_datoms: [d5, d6, d7, d8, d9], 
