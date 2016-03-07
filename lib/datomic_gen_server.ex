@@ -41,9 +41,11 @@ defmodule DatomicGenServer do
                     :v \\"A person's name\\", :tx 13194139534313, :added true} {:a 13, 
                     :e 0, :v 64, :tx 13194139534313, :added true}], :tempids {-9223367638809264705 64}}"}
   """
-  @type datomic_message :: {:q, integer, String.t} | 
+  @type datomic_message :: {:q, integer, String.t, [String.t]} | 
                            {:transact, integer, String.t} | 
-                           {:entity, integer, String.t, [atom] | :all}
+                           {:entity, integer, String.t, [atom] | :all} |
+                           {:migrate, integer, String.t} |
+                           {:load, integer, String.t}
   @type datomic_call :: {datomic_message, message_timeout :: non_neg_integer}
   @type datomic_result :: {:ok, String.t} | {:error, term}
   @type start_option :: GenServer.option | {:default_message_timeout, non_neg_integer}

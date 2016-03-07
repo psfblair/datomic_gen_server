@@ -589,7 +589,7 @@ defmodule DatomicGenServer.Db do
       )
 
   """  
-  @spec db :: {:symbol, atom}
+  @spec db :: {:symbol, :"datomic_gen_server.peer/*db*"}
   def db, do: {:symbol, :"datomic_gen_server.peer/*db*"}
   
   # TODO Allow dates
