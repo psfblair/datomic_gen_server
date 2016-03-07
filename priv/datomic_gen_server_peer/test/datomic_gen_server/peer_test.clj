@@ -54,7 +54,7 @@
       (is (= java.lang.Long (type ((edn-data :db-after) :basis-t))))
       ; TODO Can we get this somehow?
       ; (is (= "test" ((edn-data :db-after) :db/alias)))
-      (is (< 0 (- ((edn-data :db-after) :basis-t) ((edn-data :db-before) :basis-t))))
+      (is (> ((edn-data :db-after) :basis-t) ((edn-data :db-before) :basis-t)))
       
       (is (= 6 (count (edn-data :tx-data))))
       (is (= java.lang.Long (type ((nth (edn-data :tx-data) 0) :e))))
@@ -124,40 +124,43 @@
 (deftest test-seed
   (testing "Can seed a database"
     (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
-                                                "test" "resources" "migrations")
-          seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
-      (>!! in [:seed 10 (.getPath migration-dir) (.getPath seed-dir)]))
+                                                "test" "resources" "migrations")]
+      (>!! in [:migrate 10 (.getPath migration-dir)]))
+    (is (= [:ok 10 :migrated] (<!! out)))
+    
+    (let [seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
+      (>!! in [:load 11 (.getPath seed-dir)]))
     (let [transaction-result (<!! out)]
         (is (= (transaction-result 0) :ok))
-        (is (= (transaction-result 1) 10))
+        (is (= (transaction-result 1) 11))
         (is (.startsWith (transaction-result 2) "{:db-before {:basis-t")))
-    (>!! in [:q 11 (str "[:find ?c :where "
+    (>!! in [:q 12 (str "[:find ?c :where "
                         "[?e :category/name ?c] "
                         "[?e :category/subcategories ?s] "
                         "[?s :subcategory/name \"Soccer\"]]") 
               '()])
     (let [query-result (<!! out)]
       (is (= (query-result 0) :ok))
-      (is (= (query-result 1) 11))
+      (is (= (query-result 1) 12))
       (is (= "#{[\"Sports\"]}\n" (query-result 2))))))
   
 (deftest test-unknown-messages
   (testing "Can handle unknown messages"
-    (>!! in [:unknown 12 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
+    (>!! in [:unknown 13 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])
     (let [response (<!! out)]
       (is (= (nth response 0) :error))
-      (is (= (nth response 1) [:unknown 12 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])))))
+      (is (= (nth response 1) [:unknown 13 "[:find ?c :where [?c :db/doc \"A person's name\"]]"])))))
       
 (deftest test-garbled-messages
   (testing "Can handle garbled messages"
-    (>!! in [:q 13 "[:find ?c }" '()])
+    (>!! in [:q 14 "[:find ?c }" '()])
     (let [response (<!! out)]
       (is (= (nth response 0) :error))
-      (is (= (nth response 1) [:q 13 "[:find ?c }" '()])))))
+      (is (= (nth response 1) [:q 14 "[:find ?c }" '()])))))
 
 (deftest test-query-bindings
   (testing "Can bind queries"
-    (>!! in [:transact 14 "[ {:db/id #db/id[:db.part/db]
+    (>!! in [:transact 15 "[ {:db/id #db/id[:db.part/db]
                              :db/ident :person/address
                              :db/valueType :db.type/string
                              :db/cardinality :db.cardinality/one
@@ -173,16 +176,72 @@
            before-bindings (list as-of-before "\"A person's address\"")
            after-bindings (list as-of-after "\"A person's address\"")]
            
-         (>!! in [:q 15 query before-bindings])
+         (>!! in [:q 16 query before-bindings])
      
-         (let [query-result (<!! out)]
-           (is (= (query-result 0) :ok))
-           (is (= (query-result 1) 15))
-           (is (= "#{}\n" (query-result 2))))
+         (let [query-result (read-edn-response (<!! out))]
+           (is (= #{} query-result)))
        
-         (>!! in [:q 16 query after-bindings])
+         (>!! in [:q 17 query after-bindings])
      
-         (let [query-result (<!! out)]
-           (is (= (query-result 0) :ok))
-           (is (= (query-result 1) 16))
-           (is (= "#{[:person/address]}\n" (query-result 2)))))))
+         (let [query-result (read-edn-response (<!! out))]
+           (is (= #{[:person/address]} query-result))))))
+
+;; TODO - Change to test use of mock connections. :with is no longer a valid message.
+; (deftest test-with-with
+;   (testing "Can use a mock connection on a just-migrated database"
+;     (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+;                                                 "test" "resources" "migrations")]
+;       (>!! in [:seed 10 (.getPath migration-dir) (.getPath seed-dir)]))
+; 
+;     (>!! in [:transact 15 "[ { :db/id #db/id[:db.part/db]
+;                                :db/ident :business/address
+;                                :db/valueType :db.type/string
+;                                :db/cardinality :db.cardinality/one
+;                                :db/doc \"A business's address\"
+;                                :db.install/_attribute :db.part/db}]"])
+;     (<!! out)
+;       
+;     (>!! in [:transact 16 "[ { :db/id #db/id[:db.part/user]
+;                                :business/address \"222 Main Timeline St.\"}]"])
+;     (let [init-data (read-edn-response (<!! out))
+;           basis-t-before ((init-data :db-before) :basis-t)
+;           basis-t-after ((init-data :db-after) :basis-t)
+;           as-of-before (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-before ")")
+;           as-of-after (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-after ")")
+;           ]
+;       (>!! in [:with 17 "[ { :db/id #db/id[:db.part/user]
+;                               :business/address \"1980 Speculative Road\"}]" as-of-before])
+;       (let [ speculative-response (<!! out)
+;              speculative-data (read-edn-response speculative-response)
+;              ; NOTE: basis-t is not useful here. The basis-t before is still the latest
+;              ; t that could be reached from *db* before the speculative transaction,
+;              ; which is the db-after of the previous transaction, even though the
+;              ; speculative transaction was against the basis-t-before of the previous
+;              ; transaction. In addition, the db-after returned by `when` does not 
+;              ; differ from the db-before value -- they are both still the latest t
+;              ; that could be reached from *db* and does not include the speculative transaction.
+;              speculative-tx-id ((first (speculative-data :tx-data)) :tx)
+;              as-of-speculative 
+;                 (str "(datomic.api/as-of datomic_gen_server.peer/*db* " speculative-tx-id ")")
+;              query "[:find ?e :in $ ?address :where [?e :business/address ?address]]"]
+; 
+;         (is (= basis-t-before speculative-basis-t-before))
+;         
+;         (>!! in [:q 18 query (list as-of-speculative "\"222 Main Timeline St.\"")])
+;         
+;         (is (= #{} (read-edn-response (<!! out))))
+;         
+;         (>!! in [:q 19 query (list as-of-speculative "\"1980 Speculative Road\"")])
+;         
+;         (let [entity-id (first (first (read-edn-response (<!! out))))]
+;           (is (< 0 entity-id)))
+;           
+;         (>!! in [:q 20 query (list as-of-after "\"222 Main Timeline St.\"")])
+;           
+;         (let [entity-id (first (first (read-edn-response (<!! out))))]
+;           (is (< 0 entity-id)))
+;           
+;         (>!! in [:q 21 query (list as-of-after "\"1980 Speculative Road\"")])
+;           
+;         (is (= #{} (read-edn-response (<!! out))))
+;       ))))

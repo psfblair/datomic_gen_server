@@ -4,8 +4,9 @@
             [clojure-erlastic.core :refer [port-connection]]
             [clojure.core.match :refer [match]]
             [datomic.api :as datomic]
+            [datomock.core :as datomock]
             [net.phobot.datomic.migrator :refer [run-migrations]]
-            [net.phobot.datomic.seed :refer [seed-database]]
+            [net.phobot.datomic.seed :refer [transact-seed-data]]
   ))
 
 ; TODO Maybe want to configure this
@@ -37,6 +38,12 @@
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
     @completed-future))
+    
+(defn- with [database edn-str db-edn]
+  (binding [*db* database]
+    (let [as-of-db (-> db-edn read-edn eval)
+          result (datomic/with as-of-db (read-edn edn-str))]
+      result)))
 
 (defn- entity-attributes [attribute-names entity-map]
   (let [attrs (if (= :all attribute-names)
@@ -71,10 +78,10 @@
     ; run-migrations calls doseq, which returns nil, so migrate does not supply a db-after.
     {:db-after (deref (datomic/sync connection) migration-timeout-ms nil)}))
 
-(defn- seed [db-url connection migration-path seed-data-resource-path]
+(defn- load-data [db-url connection data-resource-path]
   ;; TODO Figure out a better way to handle logging
   (let [logger-fn (fn [& args] nil)
-        completed-future (seed-database connection migration-path seed-data-resource-path logger-fn)]
+        completed-future (transact-seed-data connection data-resource-path logger-fn)]
     @completed-future))
   
 ; Returns the result along with the state of the database, or nil if shut down.
@@ -92,8 +99,8 @@
       [:migrate id migration-path] 
           (let [result (migrate connection migration-path)]
             {:db (result :db-after) :result [:ok id :migrated]})
-      [:seed id migration-path seed-data-resource-path] 
-          (let [result (seed db-url connection migration-path seed-data-resource-path)]
+      [:load id data-resource-path] 
+          (let [result (load-data db-url connection data-resource-path)]
             {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
       [:ping] {:db database :result [:ok :ping]}
       [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
@@ -134,3 +141,20 @@
              [in out] (clojure-erlastic.core/port-connection port-config)]
         (start-server (first args) in out create?))))
         
+; TODO:
+; 1. When we send the :mock message, we:
+;   a. Check the environment to see if mocking is enabled
+;   b. If mocking is not enabled, return the current db, the map, the real connection, and the real connection as the active one
+;   c. Otherwise, we create a new mock connection with the current db value
+;   d. Save the db value as a "starting-point" db in a map of dbs with the key passed by mock
+;   e. Return the db, the map of db values, the real connection, and the mocked connection as the active one
+;   
+; 2. When we send a new message we continue to use the current db and connection,
+;     but have to pass those same 4 things out of the loop.
+; 
+; 3. When we send a :reset message, we
+;   a. Check the environment to see if mocking is enabled
+;   b. If mocking is not enabled, return the current db, the map, the real connection, and the real connection as the active one
+;   c. Use the key in the :reset message to get the db we are resetting to, with a special key for "live"
+;   d. If we are resetting to the live db we use the real connection and get the db from it.
+;      Otherwise, we get the db using the key, and create a new mocked connection from it.

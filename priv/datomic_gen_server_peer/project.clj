@@ -5,6 +5,7 @@
                  [org.clojure/core.match "0.3.0-alpha4"]
                  [clojure-erlastic "0.3.0"]
                  [com.datomic/datomic-pro "0.9.5344"]
+                 [vvvvalvalval/datomock "0.1.0"]
                  [net.phobot.datomic/seed "3.0.0"]
                 ]
   :main datomic_gen_server.peer

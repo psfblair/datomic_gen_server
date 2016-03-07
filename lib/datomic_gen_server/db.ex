@@ -15,7 +15,7 @@ defmodule DatomicGenServer.Db do
       q(server_identifier, exdn, options \\ [])
       transact(server_identifier, exdn, options \\ [])
       entity(server_identifier, exdn, attr_names \\ :all, options \\ [])
-      seed(server_identifier, migration_path, seed_data_path, options \\ [])
+      load(server_identifier, data_path, options \\ [])
 
 ## Datomic Shortcuts
 ### Id/ident
@@ -322,22 +322,19 @@ defmodule DatomicGenServer.Db do
   end
   
   @doc """
-  Issues a call to net.phobot.datomic/seed to seed a database using database 
-  migration files and seed data files in edn format. The database is not dropped
-  or recreated before migrating and seeding.
+  Issues a call to the Clojure net.phobot.datomic/seed library to load data into 
+  a database using data files in edn format. The database is not dropped, 
+  recreated, or migrated before loading.
   
   The first parameter to this function is the pid or alias of the GenServer process; 
-  the second is the path to the directory containing the migration files. The 
-  third parameter is the path to a (different) directory containing the seed data 
-  files. The migration files will be processed in the sort order of their directory, 
-  and then the seed data files in the sort order of their directory. 
+  the second is the path to the directory containing the data files. The data 
+  files will be processed in the sort order of their directory. 
   
-  Seed data is loaded in a single transaction. The return value of the function 
+  Data is loaded in a single transaction. The return value of the function 
   is the result of the Datomic `transact` API function call that executed the
   transaction, wrapped in a `DatomicTransaction` struct.
   
-  The Clojure Conformity library is used to keep the migrations idempotent, but
-  the loading of seed data is not idempotent.
+  Loading data does not use the Clojure Conformity library and is not idempotent.
   
   The options keyword list may include a `:client_timeout` option that specifies 
   the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
@@ -348,16 +345,15 @@ defmodule DatomicGenServer.Db do
   is never returned from the Clojure peer.
   
 ## Example
-      migration_dir = Path.join [System.cwd(), "migrations"]
-      seed_data_dir = Path.join [System.cwd(), "seed-data"]
-      DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
+      data_dir = Path.join [System.cwd(), "seed-data"]
+      DatomicGenServer.load(DatomicGenServer, data_dir)
       
       => {:ok, "{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...
       
   """
-  @spec seed(GenServer.server, String.t, String.t, [DatomicGenServer.send_option]) :: {:ok, DatomicTransaction.t} | {:error, term}
-  def seed(server_identifier, migration_path, seed_data_path, options \\ []) do
-    case DatomicGenServer.seed(server_identifier, migration_path, seed_data_path, options) do          
+  @spec load(GenServer.server, String.t, [DatomicGenServer.send_option]) :: {:ok, DatomicTransaction.t} | {:error, term}
+  def load(server_identifier, data_path, options \\ []) do
+    case DatomicGenServer.load(server_identifier, data_path, options) do          
       {:ok, reply_str} -> 
           case Exdn.to_elixir(reply_str) do
             {:ok, exdn_result} -> transaction(exdn_result)
