@@ -306,16 +306,102 @@ defmodule DatomicGenServer do
     call_server(server_identifier, {:load, msg_unique_id, data_path}, options)
   end
   
+  @doc """
+  Saves a snapshot of the current database state using a supplied key, and 
+  creates a mock connection (using the datomock library) using that database
+  as a starting point.  Requires the `:allow_datomic_mocking?` configuration
+  parameter to be set in the `:datomic_gen_server` application enviroment;
+  otherwise the current connection and database continue to be active.
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is the key under which to store the database snapshot. If successful,
+  the return value is a tuple of `:ok` and the key that was passed to the function.
+  
+  The database can be reset back to the starting point with a new mock connection
+  using the `reset` function, or can be switched back to a real connection using
+  the `unmock` function.
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.mock(DatomicGenServer, :"just-migrated")
+      
+      => {:ok, :"just-migrated"}
+      
+  """  
   @spec mock(GenServer.server, atom, [send_option]) :: datomic_result
   def mock(server_identifier, db_key, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:mock, msg_unique_id, db_key}, options)
   end
+  
+  @doc """
+  Generates a new mock connection using a database snapshot previously saved
+  using the `mock` function. Requires the `:allow_datomic_mocking?` configuration
+  parameter to be set in the `:datomic_gen_server` application enviroment;
+  otherwise the current connection and database continue to be active.
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is the key under which the database snapshot was saved. If successful,
+  the return value is a tuple of `:ok` and the key that was passed to the function.
+  
+  The database can be switched back to a real connection using the `unmock` 
+  function. It is also possible to manipulate the mocked database and save that
+  new database state in a snapshot using the `mock` function.
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.reset(DatomicGenServer, :"just-migrated")
+      
+      => {:ok, :"just-migrated"}
+      
+  """   
   @spec reset(GenServer.server, atom, [send_option]) :: datomic_result
   def reset(server_identifier, db_key, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:reset, msg_unique_id, db_key}, options)
   end
+  
+  
+  @doc """
+  Reverts to using a database derived from the real database connection rather
+  than a mocked connection. If no mock connection is active, this function is
+  a no-op.
+  
+  If the call is successful, the return value is a tuple of `:ok` and `:unmocked`.
+  
+  The first parameter to this function is the pid or alias of the GenServer process. 
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.unmock(DatomicGenServer)
+      
+      => {:ok, :unmocked}
+      
+  """
   @spec unmock(GenServer.server, [send_option]) :: datomic_result
   def unmock(server_identifier, options \\ []) do
     msg_unique_id = :erlang.unique_integer([:monotonic])
