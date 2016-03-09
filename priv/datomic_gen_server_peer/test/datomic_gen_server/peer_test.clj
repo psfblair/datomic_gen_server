@@ -293,3 +293,128 @@
     
     (System/setProperty "datomic.mocking" "false")
   ))
+
+  (deftest test-mocking-system-property
+    (testing "Mock connections don't work if System property is not set"
+      (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+                                                  "test" "resources" "migrations")]
+        (>!! in [:migrate 44 (.getPath migration-dir)]))
+      (<!! out)
+
+      (>!! in [:mock 45 :freshly-migrated])
+      (is (= [:ok 45 :freshly-migrated] (<!! out)))
+
+      (>!! in [:q 46 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+      (is (= [:ok 46 "#{}\n"] (<!! out)))
+      
+      (>!! in [:transact 47 "[ { :db/id #db/id[:test/main]
+                                 :category/name \"Sports\"}]"])
+      (<!! out)
+      
+      (>!! in [:q 48 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+      (let [query-result (read-edn-response (<!! out))]
+        (is (= 1 (count query-result))))
+
+      (>!! in [:reset 49 :freshly-migrated])
+      (is (= [:ok 49 :freshly-migrated] (<!! out)))
+
+      (>!! in [:q 50 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+      (let [query-result (read-edn-response (<!! out))]
+        (is (= 1 (count query-result))))
+
+      (>!! in [:unmock 51])
+      (is (= [:ok 51] (<!! out)))
+      
+      (>!! in [:q 52 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+      (let [query-result (read-edn-response (<!! out))]
+        (is (= 1 (count query-result))))
+    ))
+    
+(deftest test-mocking-seeded
+  (testing "Can use a mock connection on both a just-migrated and just-seeded database"
+    (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+                                                "test" "resources" "migrations")]
+      (>!! in [:migrate 53 (.getPath migration-dir)]))
+    (<!! out)
+    
+    (System/setProperty "datomic.mocking" "true")
+    (>!! in [:mock 54 :freshly-migrated])
+    (is (= [:ok 54 :freshly-migrated] (<!! out)))
+    
+    (>!! in [:q 55 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 55 "#{}\n"] (<!! out)))
+
+    (>!! in [:unmock 56])
+    (is (= [:ok 56] (<!! out)))
+
+    (let [seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
+      (>!! in [:load 57 (.getPath seed-dir)]))
+    (<!! out) 
+      
+    (>!! in [:mock 58 :freshly-seeded])
+    (is (= [:ok 58 :freshly-seeded] (<!! out)))
+    
+    (>!! in [:q 59 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    (>!! in [:reset 60 :freshly-migrated])
+    (is (= [:ok 60 :freshly-migrated] (<!! out)))
+
+    (>!! in [:q 61 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 61 "#{}\n"] (<!! out)))
+    
+    (>!! in [:reset 62 :freshly-seeded])
+    (is (= [:ok 62 :freshly-seeded] (<!! out)))
+    
+    (>!! in [:q 63 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+
+    (>!! in [:unmock 64])
+    (is (= [:ok 64] (<!! out)))
+    
+    (>!! in [:q 65 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    (>!! in [:transact 66 "[ { :db/id #db/id[:test/main]
+                               :category/name \"News\"}]"])
+    (<!! out)
+    
+    (>!! in [:q 67 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+      
+    (>!! in [:reset 68 :freshly-migrated])
+    (is (= [:ok 68 :freshly-migrated] (<!! out)))
+
+    (>!! in [:q 69 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (is (= [:ok 69 "#{}\n"] (<!! out)))
+    
+    (>!! in [:q 70 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 70 "#{}\n"] (<!! out)))
+    
+    (>!! in [:reset 71 :freshly-seeded])
+    (is (= [:ok 71 :freshly-seeded] (<!! out)))
+    
+    (>!! in [:q 72 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (is (= [:ok 72 "#{}\n"] (<!! out)))
+    
+    (>!! in [:q 73 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+        
+    (>!! in [:unmock 74])
+    (is (= [:ok 74] (<!! out)))
+    
+    (>!! in [:q 75 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    (>!! in [:q 76 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    (System/setProperty "datomic.mocking" "false")
+  ))
