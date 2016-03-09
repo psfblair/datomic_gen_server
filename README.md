@@ -110,6 +110,17 @@ The `DatomicGenServer.Db` module also contains shortcuts for many common Datomic
 keys and values, which would otherwise require a lot of additional punctuation 
 in Elixir.
 
+## Entity Maps
+
+The `DatomicGenServer.EntityMap` module provides a data structure for holding 
+entity data as a map of maps or structs. The keys of the map are Datomic 
+entity IDs by default, but you can choose any attribute as the index. Entity
+data is by default stored as a map of Datomic attributes to values; however,
+you can choose to have the data placed into a struct of your choosing. You can
+also supply a translation map in case the field names of the struct do not
+match the names of the Datomic attributes they correspond with. (Make sure to
+read the Hex docs for important caveats about using this data structure.)
+
 ## Mocking Connections
 
 The `DatomicGenServer` module offers functions that allow you to create and use 
