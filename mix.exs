@@ -3,7 +3,7 @@ defmodule DatomicGenServer.Mixfile do
 
   def project do
     [app: :datomic_gen_server,
-    # NOTE!! - This package lists files to include explicitly - see below under package
+    # NOTE!! - This package explicitly lists the files to include  - see below under package
      version: "1.1.0",
      elixir: "~> 1.2",
      description: """

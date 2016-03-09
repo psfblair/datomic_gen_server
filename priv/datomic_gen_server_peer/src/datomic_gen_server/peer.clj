@@ -147,7 +147,7 @@
             (new-state response new-db mock-connection updated-db-map))
       [:unmock message-id]             
           (let [real-db (datomic/db real-connection)
-                response [:ok message-id]]
+                response [:ok message-id :unmocked]]
             (new-state response real-db real-connection db-map))
       [:ping]
           (let [response [:ok :ping]]

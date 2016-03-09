@@ -234,7 +234,7 @@
 
     ; Test unmock
     (>!! in [:unmock 28])
-    (is (= [:ok 28] (<!! out)))
+    (is (= [:ok 28 :unmocked] (<!! out)))
     
     (>!! in [:q 29 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
     (is (= [:ok 29 "#{}\n"] (<!! out)))
@@ -282,7 +282,7 @@
     
     ; Go back to active db/connection with Sports but not News
     (>!! in [:unmock 41])
-    (is (= [:ok 41] (<!! out)))
+    (is (= [:ok 41 :unmocked] (<!! out)))
     
     (>!! in [:q 42 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
     (let [query-result (read-edn-response (<!! out))]
@@ -323,7 +323,7 @@
         (is (= 1 (count query-result))))
 
       (>!! in [:unmock 51])
-      (is (= [:ok 51] (<!! out)))
+      (is (= [:ok 51 :unmocked] (<!! out)))
       
       (>!! in [:q 52 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
       (let [query-result (read-edn-response (<!! out))]
@@ -345,7 +345,7 @@
     (is (= [:ok 55 "#{}\n"] (<!! out)))
 
     (>!! in [:unmock 56])
-    (is (= [:ok 56] (<!! out)))
+    (is (= [:ok 56 :unmocked] (<!! out)))
 
     (let [seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
       (>!! in [:load 57 (.getPath seed-dir)]))
@@ -372,7 +372,7 @@
       (is (= 1 (count query-result))))
 
     (>!! in [:unmock 64])
-    (is (= [:ok 64] (<!! out)))
+    (is (= [:ok 64 :unmocked] (<!! out)))
     
     (>!! in [:q 65 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
     (let [query-result (read-edn-response (<!! out))]
@@ -406,7 +406,7 @@
       (is (= 1 (count query-result))))
         
     (>!! in [:unmock 74])
-    (is (= [:ok 74] (<!! out)))
+    (is (= [:ok 74 :unmocked] (<!! out)))
     
     (>!! in [:q 75 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
     (let [query-result (read-edn-response (<!! out))]

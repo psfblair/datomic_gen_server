@@ -21,5 +21,5 @@ config :datomic_gen_server, message_wait_until_crash: 5_000
 # since the GenServer will crash first.
 config :datomic_gen_server, timeout_on_call: 20_000
 
-# Generally you'll want to set this in test environments only.
+# Generally you'll want to allow Datomic mocking in test environments only.
 # config :datomic_gen_server, :allow_datomic_mocking? true

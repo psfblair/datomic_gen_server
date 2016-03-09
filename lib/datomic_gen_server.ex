@@ -306,6 +306,22 @@ defmodule DatomicGenServer do
     call_server(server_identifier, {:load, msg_unique_id, data_path}, options)
   end
   
+  @spec mock(GenServer.server, atom, [send_option]) :: datomic_result
+  def mock(server_identifier, db_key, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:mock, msg_unique_id, db_key}, options)
+  end
+  @spec reset(GenServer.server, atom, [send_option]) :: datomic_result
+  def reset(server_identifier, db_key, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:reset, msg_unique_id, db_key}, options)
+  end
+  @spec unmock(GenServer.server, [send_option]) :: datomic_result
+  def unmock(server_identifier, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:unmock, msg_unique_id}, options)
+  end
+  
   @spec call_server(GenServer.server, datomic_message, [send_option]) :: datomic_result
   defp call_server(server_identifier, request, options) do
     {message_timeout, client_timeout} = message_wait_times(options)
