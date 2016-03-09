@@ -110,6 +110,21 @@ The `DatomicGenServer.Db` module also contains shortcuts for many common Datomic
 keys and values, which would otherwise require a lot of additional punctuation 
 in Elixir.
 
+## Mocking Connections
+
+The `DatomicGenServer` module offers functions that allow you to create and use 
+mock connections based on database snapshots. Mocking connections requires that  
+the `:allow_datomic_mocking?` configuration parameter be set in the 
+`:datomic_gen_server` application environment. 
+
+The `mock` function saves a snapshot of the current database value using a key 
+that you provide, and creates a new mock connection using that database as a 
+starting point. Subsequent operations on the database will use that mock 
+connection until you call either the `reset` or `unmock` functions. The `reset`
+function accepts a key and retrieves the database snapshot saved under that
+key; a new mock connection is created using that snapshot as the starting point.
+The `unmock` function reverts back to the real, live connection and database.
+
 ## Limitations
 
 This code has not been checked for possible injection vulnerabilities. Use at 

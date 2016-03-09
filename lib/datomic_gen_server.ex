@@ -310,16 +310,18 @@ defmodule DatomicGenServer do
   Saves a snapshot of the current database state using a supplied key, and 
   creates a mock connection (using the datomock library) using that database
   as a starting point.  Requires the `:allow_datomic_mocking?` configuration
-  parameter to be set in the `:datomic_gen_server` application enviroment;
-  otherwise the current connection and database continue to be active.
+  parameter to be set in the `:datomic_gen_server` application environment;
+  otherwise the current connection and database continue to be active. 
+  Subsequent operations on the database will use the mock connection until
+  you call either the `reset` or `unmock` functions.
   
   The first parameter to this function is the pid or alias of the GenServer process; 
   the second is the key under which to store the database snapshot. If successful,
   the return value is a tuple of `:ok` and the key that was passed to the function.
   
-  The database can be reset back to the starting point with a new mock connection
-  using the `reset` function, or can be switched back to a real connection using
-  the `unmock` function.
+  The active database can be reverted to the initial snapshot using the `reset` 
+  function, or can be switched back to use the real, live connection and database
+  using the `unmock` function.
   
   The options keyword list may include a `:client_timeout` option that specifies 
   the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
