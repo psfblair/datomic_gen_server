@@ -1,115 +1,115 @@
 defmodule DatomicGenServer.EntityMap do
   @moduledoc """
-      `DatomicGenServer.EntityMap` is a data structure designed to store the results
-      of Datomic queries and transactions in a map of maps or structs. The keys
-      of the `EntityMap` are by default Datomic entity IDs, but you may also index
-      the map using other attributes as keys.
-      
-      An `EntityMap` may be created from data tuples, records, or rows. A `DataTuple`
-      is a generalization of `Datom` which contains `e`, `a`, `v`, and `added` 
-      fields, where `v` may be a scalar value or a collection. A record in this
-      context is simply a map of attributes to values. A row is a list of 
-      attribute values, which must be accompanied by a "header row" containing
-      a list of attribute keys in the same list position as their corresponding
-      attribute values -- i.e., the first key in the header is the attribute key
-      for the first value in each of the rows, etc.
-      
-      The main functions for creting an `EntityMap` are `new` (to create from
-      data tuples), `from_records`, `from_rows`, and `from_transaction` (to 
-      create from a Datomic transaction). An `EntityMap` may be updated using 
-      `update` (from data tuples), `update_from_records`, `update_from_rows`,
-      and `update_from_transaction`. An entity may be retrieved using `get`, and
-      a single attribute from an entity using `get_attr`.
-      
-      When creating an `EntityMap` you may specify the attribute key to index by
-      and the struct into which to place attribute values (along with a translation
-      table for mapping the keys in the incoming data to any fields in the struct
-      that might have different names). You must also specify any cardinality many 
-      attributes; these values are contained in sets: If a data tuple contains a
-      scalar value for a cardinality many attribute, then that value is added to
-      the set of values for that attribute (or removed, in the case of retraction).
-      If a data tuple contains a collection as a value for a cardinality many 
-      attribute, the values are added to or removed from the set of values for
-      that attribute.
-      
-      When working with records and rows, the behavior is different: The value 
-      for a cardinality many attribute in a row or record should always be a
-      collection, and will always replace any pre-existing set of attributes.
-      In other words, using records and rows always assumes that a single record
-      or row contains the entire accumulated value for an attribute. There are no
-      separate addition and retraction operations for records and rows; any
-      attribute values in a record or row replace prior values. If a record or
-      row does not contain an entry for a particular attribute, that attribute
-      is left in its prior state.
-      
-      Empty collections and `nil` are "magic values" with a special behavior. 
-      When working with data tuples, either adding or retracting `nil` from a
-      scalar attribute deletes the key for that attribute from the attribute map.
-      Adding or retracting an empty collection (list or set) from a cardinality
-      many attribute resets that value to the empty set. If you want to completely
-      replace a set of values for a cardinality many attribute with a different
-      set, you would first retract `nil` for that attribute and then add the new
-      attribute values. Note that `nil` and the empty collection always override
-      any other values provided for the same operation (add or retract) for
-      that attribute in a group of data tuples. In other words, if you retract
-      a particular value and also retract `nil` in the same collection of 
-      data tuples, the `nil` wins; the same would go for adding `nil` along with
-      other values. (You can, however, retract `nil` and at the same time add
-      new values.)
-      
-      When working with records and rows, if you supply `nil` or an empty 
-      collection as a value for an attribute, that value is removed from
-      the attribute map (or set to the empty set if the attribute is cardinality
-      many).
-      
-      Note that internally, `EntityMap` uses an empty tuple as a null value marker. 
-      You should not use empty tuples in attribute values.
-            
-      Empty entities -- entities with no attribute values other than empty 
-      collections and the entity ID -- are removed from the entity map.
+  DatomicGenServer.EntityMap is a data structure designed to store the results
+  of Datomic queries and transactions in a map of maps or structs. The keys
+  of the `EntityMap` are by default Datomic entity IDs, but you may also index
+  the map using other attributes as keys.
+
+  An `EntityMap` may be created from data tuples, records, or rows. A `DataTuple`
+  is a generalization of `Datom` which contains `e`, `a`, `v`, and `added` 
+  fields, where `v` may be a scalar value or a collection. A record in this
+  context is simply a map of attributes to values. A row is a list of 
+  attribute values, which must be accompanied by a "header row" containing
+  a list of attribute keys in the same list position as their corresponding
+  attribute values -- i.e., the first key in the header is the attribute key
+  for the first value in each of the rows, etc.
+  
+  The main functions for creting an `EntityMap` are `new` (to create from
+  data tuples), `from_records`, `from_rows`, and `from_transaction` (to 
+  create from a Datomic transaction). An `EntityMap` may be updated using 
+  `update` (from data tuples), `update_from_records`, `update_from_rows`,
+  and `update_from_transaction`. An entity may be retrieved using `get`, and
+  a single attribute from an entity using `get_attr`.
+  
+  When creating an `EntityMap` you may specify the attribute key to index by
+  and the struct into which to place attribute values (along with a translation
+  table for mapping the keys in the incoming data to any fields in the struct
+  that might have different names). You must also specify any cardinality many 
+  attributes; these values are contained in sets: If a data tuple contains a
+  scalar value for a cardinality many attribute, then that value is added to
+  the set of values for that attribute (or removed, in the case of retraction).
+  If a data tuple contains a collection as a value for a cardinality many 
+  attribute, the values are added to or removed from the set of values for
+  that attribute.
+  
+  When working with records and rows, the behavior is different: The value 
+  for a cardinality many attribute in a row or record should always be a
+  collection, and will always replace any pre-existing set of attributes.
+  In other words, using records and rows always assumes that a single record
+  or row contains the entire accumulated value for an attribute. There are no
+  separate addition and retraction operations for records and rows; any
+  attribute values in a record or row replace prior values. If a record or
+  row does not contain an entry for a particular attribute, that attribute
+  is left in its prior state.
+  
+  Empty collections and `nil` are "magic values" with a special behavior. 
+  When working with data tuples, either adding or retracting `nil` from a
+  scalar attribute deletes the key for that attribute from the attribute map.
+  Adding or retracting an empty collection (list or set) from a cardinality
+  many attribute resets that value to the empty set. If you want to completely
+  replace a set of values for a cardinality many attribute with a different
+  set, you would first retract `nil` for that attribute and then add the new
+  attribute values. Note that `nil` and the empty collection always override
+  any other values provided for the same operation (add or retract) for
+  that attribute in a group of data tuples. In other words, if you retract
+  a particular value and also retract `nil` in the same collection of 
+  data tuples, the `nil` wins; the same would go for adding `nil` along with
+  other values. (You can, however, retract `nil` and at the same time add
+  new values.)
+  
+  When working with records and rows, if you supply `nil` or an empty 
+  collection as a value for an attribute, that value is removed from
+  the attribute map (or set to the empty set if the attribute is cardinality
+  many).
+  
+  Note that internally, `EntityMap` uses an empty tuple as a null value marker. 
+  You should not use empty tuples in attribute values.
+        
+  Empty entities -- entities with no attribute values other than empty 
+  collections and the entity ID -- are removed from the entity map.
 
 ## Aggregation
 
-      You can specify a struct to carry attribute values, along with a 
-      translation from the attribute keys in the raw data to the names of the
-      fields in the struct. Note that it is possible for an EntityMap to contain 
-      entities of different types, whereas an aggregator will narrow the 
-      EntityMap to entities of a single type -- attribute maps that cannot be
-      aggregated into the struct will not appear in the aggregated map. Note,
-      however, that to be able to be aggregated into a struct, an attribute map
-      only needs to share one key with that struct -- any attributes that the
-      map has that are not in the struct are discarded, and any fields of the
-      struct that are not present in the attribute map are set to their default
-      values. Note also that if you supply a translation table for attribute keys
-      to struct fields, if an attribute map already has a key with the same name
-      as a struct field, that value will still be mapped into the struct -- i.e.,
-      if you provide a translation table that maps the attribute key `:identifier`
-      to `:id`, then any attribute values with the key `:identifier` will be put 
-      into the struct's `id` field--but so will any attribute values with the key 
-      `:id`.
-      
-      Since any entities failing aggregation aren't included in the aggregated
-      map, you can use aggregators to filter an `EntityMap` to contain just those
-      entities that you want. (See e.g., the `aggregate_by` function, which
-      returns a new `EntityMap` containing the original data aggregated in a
-      new way.) This also allows you to create multiple `EntityMaps` from a 
-      single original `EntityMap`, each of which has an aggregated map that
-      references only certain entities in the data.
-      
-      Internally, the `EntityMap` still contains all its original data,
-      so if you re-aggregate an already aggregated map, the new aggregation is
-      applied to all the data used to construct the original map, and not just 
-      to the data accessible in the already-aggregated map.
-      
+  You can specify a struct to carry attribute values, along with a 
+  translation from the attribute keys in the raw data to the names of the
+  fields in the struct. Note that it is possible for an EntityMap to contain 
+  entities of different types, whereas an aggregator will narrow the 
+  EntityMap to entities of a single type -- attribute maps that cannot be
+  aggregated into the struct will not appear in the aggregated map. Note,
+  however, that to be able to be aggregated into a struct, an attribute map
+  only needs to share one key with that struct -- any attributes that the
+  map has that are not in the struct are discarded, and any fields of the
+  struct that are not present in the attribute map are set to their default
+  values. Note also that if you supply a translation table for attribute keys
+  to struct fields, if an attribute map already has a key with the same name
+  as a struct field, that value will still be mapped into the struct -- i.e.,
+  if you provide a translation table that maps the attribute key `:identifier`
+  to `:id`, then any attribute values with the key `:identifier` will be put 
+  into the struct's `id` field--but so will any attribute values with the key 
+  `:id`.
+  
+  Since any entities failing aggregation aren't included in the aggregated
+  map, you can use aggregators to filter an `EntityMap` to contain just those
+  entities that you want. (See e.g., the `aggregate_by` function, which
+  returns a new `EntityMap` containing the original data aggregated in a
+  new way.) This also allows you to create multiple `EntityMaps` from a 
+  single original `EntityMap`, each of which has an aggregated map that
+  references only certain entities in the data.
+  
+  Internally, the `EntityMap` still contains all its original data,
+  so if you re-aggregate an already aggregated map, the new aggregation is
+  applied to all the data used to construct the original map, and not just 
+  to the data accessible in the already-aggregated map.
+    
 ## Indexing
 
-      You can choose an attribute that will supply the keys for the `EntityMap`.
-      If the raw data for an entity does not contain a value for that attribute,
-      that entity will not appear in the indexed map.
-      
-      If you are indexing an aggregated map, the possible keys are the names of 
-      the struct fields, not the names of the raw attributes those fields have
-      been translated from.
+  You can choose an attribute that will supply the keys for the `EntityMap`.
+  If the raw data for an entity does not contain a value for that attribute,
+  that entity will not appear in the indexed map.
+  
+  If you are indexing an aggregated map, the possible keys are the names of 
+  the struct fields, not the names of the raw attributes those fields have
+  been translated from.
 """  
   defstruct raw_data: %{}, inner_map: %{}, 
             cardinality_many: MapSet.new(), index_by: nil, 

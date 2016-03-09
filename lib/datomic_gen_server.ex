@@ -2,12 +2,12 @@ defmodule DatomicGenServer do
   use GenServer
   require Logger
   @moduledoc """
-    DatomicGenServer is an Elixir GenServer that communicates with a Clojure 
-    Datomic peer running in the JVM, using clojure-erlastic.
+  DatomicGenServer is an Elixir GenServer that communicates with a Clojure 
+  Datomic peer running in the JVM, using clojure-erlastic.
 
-    The interface functions in this module communicate with Datomic using edn
-    strings. To use Elixir data structures, see the accompanying `DatomicGenServer.db`
-    module.
+  The interface functions in this module communicate with Datomic using edn
+  strings. To use Elixir data structures, see the accompanying `DatomicGenServer.db`
+  module.
 
 ## Examples
     

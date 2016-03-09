@@ -1,4 +1,7 @@
 defmodule DatomicTransaction do
+  @moduledoc """
+  A data structure for representing a Datomic transaction.
+  """  
   defstruct tx_id: 0,
             basis_t_before: 0, 
             basis_t_after: 0, 

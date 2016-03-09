@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.11.3">
-    <title>DatomicGenServer – datomic_gen_server v1.1.0</title>
-    <link rel="stylesheet" href="" />
+    <meta name="generator" content="ExDoc v0.11.4">
+    <title>DatomicGenServer – datomic_gen_server v2.0.0</title>
+    <link rel="stylesheet" href="dist/app-1e374caa3d.css" />
     <script src="dist/sidebar_items.js"></script>
   </head>
   <body data-type="modules">
@@ -27,7 +27,7 @@
         datomic_gen_server
       </h1>
       <h2 class="sidebar-projectVersion">
-        v1.1.0
+        v2.0.0
       </h2>
     </div>
     
@@ -59,7 +59,7 @@
 
 
       <h1>
-        <small class="visible-xs">datomic_gen_server v1.1.0</small>
+        <small class="visible-xs">datomic_gen_server v2.0.0</small>
         DatomicGenServer
         
         
@@ -169,6 +169,17 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
 </div>
 <div class="summary-row">
   <div class="summary-signature">
+    <a href="#load/3">load(server_identifier, data_path, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a call to the Clojure net.phobot.datomic/seed library to load data into 
+a database using data files in edn format. The database is not dropped, 
+recreated, or migrated before loading</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
     <a href="#migrate/3">migrate(server_identifier, migration_path, options \\ [])</a>
   </div>
   
@@ -179,7 +190,22 @@ database migration files in edn format</p>
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#q/3">q(server_identifier, edn_str, options \\ [])</a>
+    <a href="#mock/3">mock(server_identifier, db_key, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Saves a snapshot of the current database state using a supplied key, and 
+creates a mock connection (using the datomock library) using that database
+as a starting point.  Requires the <code class="inline">:allow_datomic_mocking?</code> configuration
+parameter to be set in the <code class="inline">:datomic_gen_server</code> application environment;
+otherwise the current connection and database continue to be active. 
+Subsequent operations on the database will use the mock connection until
+you call either the <code class="inline">reset</code> or <code class="inline">unmock</code> functions</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#q/4">q(server_identifier, edn_str, bindings_edn \\ [], options \\ [])</a>
   </div>
   
     <div class="summary-synopsis"><p>Queries a DatomicGenServer using a query formulated as an edn string.
@@ -189,12 +215,13 @@ This query is passed to the Datomic <code class="inline">q</code> API function</
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#seed/4">seed(server_identifier, migration_path, seed_data_path, options \\ [])</a>
+    <a href="#reset/3">reset(server_identifier, db_key, options \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Issues a call to net.phobot.datomic/seed to seed a database using database 
-migration files and seed data files in edn format. The database is not dropped
-or recreated before migrating and seeding</p>
+    <div class="summary-synopsis"><p>Generates a new mock connection using a database snapshot previously saved
+using the <code class="inline">mock</code> function. Requires the <code class="inline">:allow_datomic_mocking?</code> configuration
+parameter to be set in the <code class="inline">:datomic_gen_server</code> application enviroment;
+otherwise the current connection and database continue to be active</p>
 </div>
   
 </div>
@@ -227,6 +254,17 @@ API function</p>
 </div>
   
 </div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#unmock/2">unmock(server_identifier, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Reverts to using a database derived from the real database connection rather
+than a mocked connection. If no mock connection is active, this function is
+a no-op</p>
+</div>
+  
+</div>
 
   </div>
 
@@ -253,9 +291,14 @@ API function</p>
 </div>
 <div id="t:datomic_message/0" class="type-detail">
   <pre><code class="elixir"><a href="#t:datomic_message/0">datomic_message</a> ::
-  {:q, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
+  {:q, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>]} |
   {:transact, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
-  {:entity, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [atom] | :all}</code></pre>
+  {:entity, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [atom] | :all} |
+  {:migrate, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
+  {:load, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
+  {:mock, integer, atom} |
+  {:reset, integer, atom} |
+  {:unmock, integer}</code></pre>
   
 </div>
 <div id="t:datomic_result/0" class="type-detail">
@@ -326,6 +369,51 @@ is never returned from the Clojure peer.</p>
 
   </section>
 </div>
+<div class="detail" id="load/3">
+  <div class="detail-header">
+    <a href="#load/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">load(server_identifier, data_path, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">load(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a call to the Clojure net.phobot.datomic/seed library to load data into 
+a database using data files in edn format. The database is not dropped, 
+recreated, or migrated before loading.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the path to the directory containing the data files. The data 
+files will be processed in the sort order of their directory. </p>
+<p>Data is loaded in a single transaction. The return value of the function 
+is the result of the Datomic <code class="inline">transact</code> API function call that executed the
+transaction. If you want this result in a struct, call the wrapper <code class="inline">load</code> 
+function in the <a href="DatomicGenServer.Db.html"><code class="inline">DatomicGenServer.Db</code></a> module.</p>
+<p>Loading data does not use the Clojure Conformity library and is not idempotent.</p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
+DatomicGenServer.load(DatomicGenServer, data_dir)
+
+=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
+
+  </section>
+</div>
 <div class="detail" id="migrate/3">
   <div class="detail-header">
     <a href="#migrate/3" class="detail-link" title="Link to this function">
@@ -365,12 +453,12 @@ is never returned from the Clojure peer.</p>
 
   </section>
 </div>
-<div class="detail" id="q/3">
+<div class="detail" id="mock/3">
   <div class="detail-header">
-    <a href="#q/3" class="detail-link" title="Link to this function">
+    <a href="#mock/3" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">q(server_identifier, edn_str, options \\ [])</span>
+    <span class="signature">mock(server_identifier, db_key, options \\ [])</span>
       
   </div>
   
@@ -378,7 +466,53 @@ is never returned from the Clojure peer.</p>
       <h4 class="specs-title">Specs</h4>
       <div class="specs-list">
         
-          <pre><code class="elixir">q(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+          <pre><code class="elixir">mock(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, atom, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Saves a snapshot of the current database state using a supplied key, and 
+creates a mock connection (using the datomock library) using that database
+as a starting point.  Requires the <code class="inline">:allow_datomic_mocking?</code> configuration
+parameter to be set in the <code class="inline">:datomic_gen_server</code> application environment;
+otherwise the current connection and database continue to be active. 
+Subsequent operations on the database will use the mock connection until
+you call either the <code class="inline">reset</code> or <code class="inline">unmock</code> functions.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the key under which to store the database snapshot. If successful,
+the return value is a tuple of <code class="inline">:ok</code> and the key that was passed to the function.</p>
+<p>The active database can be reverted to the initial snapshot using the <code class="inline">reset</code> 
+function, or can be switched back to use the real, live connection and database
+using the <code class="inline">unmock</code> function.</p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">DatomicGenServer.mock(DatomicGenServer, :&quot;just-migrated&quot;)
+
+=&gt; {:ok, :&quot;just-migrated&quot;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="q/4">
+  <div class="detail-header">
+    <a href="#q/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">q(server_identifier, edn_str, bindings_edn \\ [], options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">q(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>], [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
         
       </div>
     </div>
@@ -387,7 +521,17 @@ is never returned from the Clojure peer.</p>
     <p>Queries a DatomicGenServer using a query formulated as an edn string.
 This query is passed to the Datomic <code class="inline">q</code> API function.</p>
 <p>The first parameter to this function is the pid or alias of the GenServer process;
-the second is the query. The options keyword list may include a <code class="inline">:client_timeout</code> 
+the second is the query.</p>
+<p>The optional third parameter is a list of bindings for the data sources in the 
+query, passed to the <code class="inline">inputs</code> argument of the Datomic <code class="inline">q</code> function. <strong>IMPORTANT:</strong> 
+These bindings are passed in the form of edn strings which are read back in the  
+Clojure peer and then passed to Clojure <code class="inline">eval</code>. Since any arbitrary Clojure forms  
+that are passed in are evaluated, <strong>you must be particularly careful that these  
+bindings are sanitized</strong> and that you are not passing anything that you don’t
+control. In general, you should prefer the <code class="inline">DatomicGenServer.Db.q/3</code> function
+which accepts data structures and converts them to edn.</p>
+<p>Bindings may include <code class="inline">datomic_gen_server.peer/*db*</code> for the current database.  </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> 
 option that specifies the milliseconds timeout passed to GenServer.call, and a 
 <code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait
 for a response before crashing (overriding the default value set in <code class="inline">start</code> or
@@ -402,12 +546,12 @@ DatomicGenServer.q(DatomicGenServer, query)
 
   </section>
 </div>
-<div class="detail" id="seed/4">
+<div class="detail" id="reset/3">
   <div class="detail-header">
-    <a href="#seed/4" class="detail-link" title="Link to this function">
+    <a href="#reset/3" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">seed(server_identifier, migration_path, seed_data_path, options \\ [])</span>
+    <span class="signature">reset(server_identifier, db_key, options \\ [])</span>
       
   </div>
   
@@ -415,26 +559,22 @@ DatomicGenServer.q(DatomicGenServer, query)
       <h4 class="specs-title">Specs</h4>
       <div class="specs-list">
         
-          <pre><code class="elixir">seed(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+          <pre><code class="elixir">reset(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, atom, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
         
       </div>
     </div>
   
   <section class="docstring">
-    <p>Issues a call to net.phobot.datomic/seed to seed a database using database 
-migration files and seed data files in edn format. The database is not dropped
-or recreated before migrating and seeding.</p>
+    <p>Generates a new mock connection using a database snapshot previously saved
+using the <code class="inline">mock</code> function. Requires the <code class="inline">:allow_datomic_mocking?</code> configuration
+parameter to be set in the <code class="inline">:datomic_gen_server</code> application enviroment;
+otherwise the current connection and database continue to be active.</p>
 <p>The first parameter to this function is the pid or alias of the GenServer process; 
-the second is the path to the directory containing the migration files. The 
-third parameter is the path to a (different) directory containing the seed data 
-files. The migration files will be processed in the sort order of their directory, 
-and then the seed data files in the sort order of their directory. </p>
-<p>Seed data is loaded in a single transaction. The return value of the function 
-is the result of the Datomic <code class="inline">transact</code> API function call that executed the
-transaction. If you want this result in a struct, call the wrapper <code class="inline">seed</code> function
-in the <a href="DatomicGenServer.Db.html"><code class="inline">DatomicGenServer.Db</code></a> module.</p>
-<p>The Clojure Conformity library is used to keep the migrations idempotent, but
-the loading of seed data is not idempotent.</p>
+the second is the key under which the database snapshot was saved. If successful,
+the return value is a tuple of <code class="inline">:ok</code> and the key that was passed to the function.</p>
+<p>The database can be switched back to a real connection using the <code class="inline">unmock</code> 
+function. It is also possible to manipulate the mocked database and save that
+new database state in a snapshot using the <code class="inline">mock</code> function.</p>
 <p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
 the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
 option that specifies how long the GenServer should wait for a response before 
@@ -443,11 +583,9 @@ that if the <code class="inline">:client_timeout</code> is shorter than the <cod
 the call will return an error but the server will not crash even if the message 
 is never returned from the Clojure peer.</p>
 <h2>Example</h2>
-<pre><code class="elixir">migration_dir = Path.join [System.cwd(), &quot;migrations&quot;]
-seed_data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
-DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
+<pre><code class="elixir">DatomicGenServer.reset(DatomicGenServer, :&quot;just-migrated&quot;)
 
-=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
+=&gt; {:ok, :&quot;just-migrated&quot;}</code></pre>
 
   </section>
 </div>
@@ -580,6 +718,44 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
 
   </section>
 </div>
+<div class="detail" id="unmock/2">
+  <div class="detail-header">
+    <a href="#unmock/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">unmock(server_identifier, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">unmock(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Reverts to using a database derived from the real database connection rather
+than a mocked connection. If no mock connection is active, this function is
+a no-op.</p>
+<p>If the call is successful, the return value is a tuple of <code class="inline">:ok</code> and <code class="inline">:unmocked</code>.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process. </p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">DatomicGenServer.unmock(DatomicGenServer)
+
+=&gt; {:ok, :unmocked}</code></pre>
+
+  </section>
+</div>
 
         </section>
       
@@ -591,7 +767,7 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
       <p>
         <span class="line">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" rel="help" target="_blank">ExDoc</a> (v0.11.3),
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" rel="help" target="_blank">ExDoc</a> (v0.11.4),
         </span>
         <span class="line">
           designed by
@@ -603,7 +779,7 @@ DatomicGenServer.transact(DatomicGenServer, data_to_add)
   </div>
 </section>
 </div>
-  <script src=""></script>
+  <script src="dist/app-6d2e071366.js"></script>
   </body>
 </html>
 

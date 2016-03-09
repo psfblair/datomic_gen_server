@@ -1,14 +1,14 @@
 defmodule DatomicGenServer.Db do
   @moduledoc """
-    DatomicGenServer.Db is a module intended to facilitate the use of Elixir
-    data structures instead of edn strings for communicating with Datomic. This
-    module maps the DatomicGenServer interface functions in wrappers that accept
-    and return Elixir data structures, and also provides slightly more syntactically
-    pleasant equivalents for Datomic keys and structures that would otherwise
-    need to be represented using a lot of punctuation that isn't required in Clojure.
-    
-    The hexdoc organizes the functions in this module alphabetically; here is a 
-    list by topic:
+  DatomicGenServer.Db is a module intended to facilitate the use of Elixir
+  data structures instead of edn strings for communicating with Datomic. This
+  module maps the DatomicGenServer interface functions in wrappers that accept
+  and return Elixir data structures, and also provides slightly more syntactically
+  pleasant equivalents for Datomic keys and structures that would otherwise
+  need to be represented using a lot of punctuation that isn't required in Clojure.
+  
+  The hexdoc organizes the functions in this module alphabetically; here is a 
+  list by topic:
     
 ## Interface functions    
 

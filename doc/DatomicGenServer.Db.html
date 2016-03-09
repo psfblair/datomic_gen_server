@@ -4,9 +4,9 @@
     <meta charset="utf-8">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="generator" content="ExDoc v0.11.3">
-    <title>DatomicGenServer.Db – datomic_gen_server v1.1.0</title>
-    <link rel="stylesheet" href="" />
+    <meta name="generator" content="ExDoc v0.11.4">
+    <title>DatomicGenServer.Db – datomic_gen_server v2.0.0</title>
+    <link rel="stylesheet" href="dist/app-1e374caa3d.css" />
     <script src="dist/sidebar_items.js"></script>
   </head>
   <body data-type="modules">
@@ -27,7 +27,7 @@
         datomic_gen_server
       </h1>
       <h2 class="sidebar-projectVersion">
-        v1.1.0
+        v2.0.0
       </h2>
     </div>
     
@@ -59,7 +59,7 @@
 
 
       <h1>
-        <small class="visible-xs">datomic_gen_server v1.1.0</small>
+        <small class="visible-xs">datomic_gen_server v2.0.0</small>
         DatomicGenServer.Db
         
         
@@ -79,7 +79,7 @@
 <pre><code class="elixir">q(server_identifier, exdn, options \ [])
 transact(server_identifier, exdn, options \ [])
 entity(server_identifier, exdn, attr_names \ :all, options \ [])
-seed(server_identifier, migration_path, seed_data_path, options \ [])</code></pre>
+load(server_identifier, data_path, options \ [])</code></pre>
 <h2>Datomic Shortcuts</h2>
 <h3>Id/ident</h3>
 <pre><code class="elixir">dbid(db_part)
@@ -131,10 +131,14 @@ user_partition</code></pre>
 <pre><code class="elixir">q?(atom)</code></pre>
 <h3>Data sources</h3>
 <pre><code class="elixir">implicit
-inS(placeholder_atom)</code></pre>
+inS(placeholder_atom)
+db
+as_of(tx_id)
+since(tx_id)
+history</code></pre>
 <h3>Bindings and find specifications</h3>
 <pre><code class="elixir">single_scalar
-blank_binding
+blank
 collection_binding(placeholder_atom)</code></pre>
 <h3>Clauses</h3>
 <pre><code class="elixir">_not(inner_clause)
@@ -235,10 +239,11 @@ Db.q(DatomicGenServer, query)
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#_expr/3">_expr(function_symbol, remaining_expressions, bindings)</a>
+    <a href="#_expr/3">_expr(function_symbol, remaining_expressions, bindings \\ [])</a>
   </div>
   
-    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic expression clause</p>
+    <div class="summary-synopsis"><p>Convenience shortcut for creating a Datomic expression clause. Note that this
+is <em>not</em> the same as a simple Clojure expression inside parentheses</p>
 </div>
   
 </div>
@@ -316,7 +321,17 @@ Db.q(DatomicGenServer, query)
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#blank_binding/0">blank_binding()</a>
+    <a href="#as_of/1">as_of(tx_id)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Convenience function to allow passing a call to the Datomic <code class="inline">as-of</code> API function
+when creating data source bindings to a query or transaction</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#blank/0">blank()</a>
   </div>
   
     <div class="summary-synopsis"><p>Convenience shortcut for the blank binding <code class="inline">_</code> as used, for example, in: 
@@ -358,6 +373,16 @@ Db.q(DatomicGenServer, query)
   
     <div class="summary-synopsis"><p>Convenience shortcut for collection binding find specification <code class="inline">...</code>
 as used, for example, in: <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#db/0">db()</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Convenience shortcut to allow you to pass the current database in the data source
+bindings to a query or transaction</p>
 </div>
   
 </div>
@@ -412,6 +437,16 @@ as used, for example, in: <code class="inline">[:find ?e in $ [?a ...] :where [?
   </div>
   
     <div class="summary-synopsis"><p>Convenience shortcut for <code class="inline">:&quot;db/fulltext&quot;</code></p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#history/0">history()</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Convenience shortcut to allw passing a call to the Datomic <code class="inline">history</code> API function
+when creating data source bindings to a query or transaction</p>
 </div>
   
 </div>
@@ -481,6 +516,17 @@ symbols prefixed by a dollar sign</p>
 </div>
 <div class="summary-row">
   <div class="summary-signature">
+    <a href="#load/3">load(server_identifier, data_path, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a call to the Clojure net.phobot.datomic/seed library to load data into 
+a database using data files in edn format. The database is not dropped, 
+recreated, or migrated before loading</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
     <a href="#no_history/0">no_history()</a>
   </div>
   
@@ -490,7 +536,7 @@ symbols prefixed by a dollar sign</p>
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#q/3">q(server_identifier, exdn, options \\ [])</a>
+    <a href="#q/4">q(server_identifier, exdn, exdn_bindings \\ [], options \\ [])</a>
   </div>
   
     <div class="summary-synopsis"><p>Queries a DatomicGenServer using a query formulated as an Elixir list.
@@ -529,12 +575,11 @@ symbols prefixed by a question mark</p>
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#seed/4">seed(server_identifier, migration_path, seed_data_path, options \\ [])</a>
+    <a href="#since/1">since(tx_id)</a>
   </div>
   
-    <div class="summary-synopsis"><p>Issues a call to net.phobot.datomic/seed to seed a database using database 
-migration files and seed data files in edn format. The database is not dropped
-or recreated before migrating and seeding</p>
+    <div class="summary-synopsis"><p>Convenience function to allow passing a call to the Datomic <code class="inline">since</code> API function
+when creating data source bindings to a query or transaction</p>
 </div>
   
 </div>
@@ -827,7 +872,7 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     <a href="#_expr/3" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">_expr(function_symbol, remaining_expressions, bindings)</span>
+    <span class="signature">_expr(function_symbol, remaining_expressions, bindings \\ [])</span>
       
   </div>
   
@@ -841,7 +886,8 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
     </div>
   
   <section class="docstring">
-    <p>Convenience shortcut for creating a Datomic expression clause. </p>
+    <p>Convenience shortcut for creating a Datomic expression clause. Note that this
+is <em>not</em> the same as a simple Clojure expression inside parentheses.</p>
 <p>An expression clause allows arbitrary Java or Clojure functions to be used 
 inside of Datalog queries; they are either of form <code class="inline">[(predicate ...)]</code> or 
 <code class="inline">[(function ...) bindings]</code>. An expression clause is thus a Clojure list inside 
@@ -1000,16 +1046,16 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
 <pre><code class="elixir">Db._or_join(
   [ Db.q?(:person) ],
   [ Db._and([
-      [Db.q?(:employer), :&quot;business/employee&quot; Db.q?(:person)],
-      [Db.q?(:employer), :&quot;business/nonprofit&quot; true]
+      [Db.q?(:employer), :&quot;business/employee&quot;, Db.q?(:person)],
+      [Db.q?(:employer), :&quot;business/nonprofit&quot;, true]
     ]),
-    [Db.q?(:person), :&quot;person/age&quot; 65]
+    [Db.q?(:person), :&quot;person/age&quot;, 65]
   ]
 )</code></pre>
 <p>sends the following to Datomic:</p>
 <pre><code class="elixir">(or-join [?person]
        (and [?employer :business/employee ?person]
-            [?employer :business/nonprofit true]))
+            [?employer :business/nonprofit true])
        [?person :person/age 65])</code></pre>
 
   </section>
@@ -1089,12 +1135,12 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
 
   </section>
 </div>
-<div class="detail" id="blank_binding/0">
+<div class="detail" id="as_of/1">
   <div class="detail-header">
-    <a href="#blank_binding/0" class="detail-link" title="Link to this function">
+    <a href="#as_of/1" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">blank_binding()</span>
+    <span class="signature">as_of(tx_id)</span>
       
   </div>
   
@@ -1102,7 +1148,39 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
       <h4 class="specs-title">Specs</h4>
       <div class="specs-list">
         
-          <pre><code class="elixir">blank_binding :: {:symbol, :_}</code></pre>
+          <pre><code class="elixir">as_of(integer) :: {:list, [Exdn.exdn]}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Convenience function to allow passing a call to the Datomic <code class="inline">as-of</code> API function
+when creating data source bindings to a query or transaction. </p>
+<p>Accepts an integer as its argument, representing a transaction number or 
+transaction ID. Dates are not yet supported.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db.q(DatomicGenServer, 
+      [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+       :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+     [Db.as_of(transaction.basis_t_after), &quot;A person&#39;s address&quot;]
+)</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="blank/0">
+  <div class="detail-header">
+    <a href="#blank/0" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">blank()</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">blank :: {:symbol, :_}</code></pre>
         
       </div>
     </div>
@@ -1203,6 +1281,40 @@ function allows us not to have to sprinkle that syntax all over the place.</p>
   <section class="docstring">
     <p>Convenience shortcut for collection binding find specification <code class="inline">...</code>
 as used, for example, in: <code class="inline">[:find ?e in $ [?a ...] :where [?e age ?a] ]</code></p>
+
+  </section>
+</div>
+<div class="detail" id="db/0">
+  <div class="detail-header">
+    <a href="#db/0" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">db()</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">db :: {:symbol, :"datomic_gen_server.peer/*db*"}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Convenience shortcut to allow you to pass the current database in the data source
+bindings to a query or transaction.</p>
+<p>This gets bound to the value of the Clojure dynamic variable 
+<code class="inline">datomic_gen_server.peer/*db*</code> inside the peer.</p>
+<p>This value is also used inside functions such as <code class="inline">as_of</code> which take the database
+and return a different database value based on transaction time etc.</p>
+<h2>Example</h2>
+<pre><code class="elixir">Db.q(DatomicGenServer, 
+      [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+       :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+     [Db.db, &quot;A person&#39;s address&quot;]
+)</code></pre>
 
   </section>
 </div>
@@ -1362,6 +1474,32 @@ is never returned from the Clojure peer.</p>
   
   <section class="docstring">
     <p>Convenience shortcut for <code class="inline">:&quot;db/fulltext&quot;</code></p>
+
+  </section>
+</div>
+<div class="detail" id="history/0">
+  <div class="detail-header">
+    <a href="#history/0" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">history()</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">history :: {:list, [Exdn.exdn]}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Convenience shortcut to allw passing a call to the Datomic <code class="inline">history</code> API function
+when creating data source bindings to a query or transaction.</p>
+<p>This will become of use when datoms and index-range calls and queries are
+supported.</p>
 
   </section>
 </div>
@@ -1529,6 +1667,52 @@ sign is to be prepended.</p>
 
   </section>
 </div>
+<div class="detail" id="load/3">
+  <div class="detail-header">
+    <a href="#load/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">load(server_identifier, data_path, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">load(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="DatomicGenServer.html#t:send_option/0">DatomicGenServer.send_option</a>]) ::
+  {:ok, <a href="DatomicTransaction.html#t:t/0">DatomicTransaction.t</a>} |
+  {:error, term}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a call to the Clojure net.phobot.datomic/seed library to load data into 
+a database using data files in edn format. The database is not dropped, 
+recreated, or migrated before loading.</p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is the path to the directory containing the data files. The data 
+files will be processed in the sort order of their directory. </p>
+<p>Data is loaded in a single transaction. The return value of the function 
+is the result of the Datomic <code class="inline">transact</code> API function call that executed the
+transaction, wrapped in a <a href="DatomicTransaction.html"><code class="inline">DatomicTransaction</code></a> struct.</p>
+<p>Loading data does not use the Clojure Conformity library and is not idempotent.</p>
+<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
+the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
+option that specifies how long the GenServer should wait for a response before 
+crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
+that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
+the call will return an error but the server will not crash even if the message 
+is never returned from the Clojure peer.</p>
+<h2>Example</h2>
+<pre><code class="elixir">data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
+DatomicGenServer.load(DatomicGenServer, data_dir)
+
+=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
+
+  </section>
+</div>
 <div class="detail" id="no_history/0">
   <div class="detail-header">
     <a href="#no_history/0" class="detail-link" title="Link to this function">
@@ -1552,12 +1736,12 @@ sign is to be prepended.</p>
 
   </section>
 </div>
-<div class="detail" id="q/3">
+<div class="detail" id="q/4">
   <div class="detail-header">
-    <a href="#q/3" class="detail-link" title="Link to this function">
+    <a href="#q/4" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">q(server_identifier, exdn, options \\ [])</span>
+    <span class="signature">q(server_identifier, exdn, exdn_bindings \\ [], options \\ [])</span>
       
   </div>
   
@@ -1565,7 +1749,7 @@ sign is to be prepended.</p>
       <h4 class="specs-title">Specs</h4>
       <div class="specs-list">
         
-          <pre><code class="elixir">q(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, [Exdn.exdn], [<a href="#t:query_option/0">query_option</a>]) ::
+          <pre><code class="elixir">q(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, [Exdn.exdn], [Exdn.exdn], [<a href="#t:query_option/0">query_option</a>]) ::
   {:ok, term} |
   {:error, term}</code></pre>
         
@@ -1578,6 +1762,16 @@ This query is translated to an edn string which is then passed to the Datomic
 <code class="inline">q</code> API function. </p>
 <p>The first parameter to this function is the pid or alias of the GenServer process; 
 the second is the query. </p>
+<p>The optional third parameter is a list of bindings for the data sources in the 
+query, passed to the <code class="inline">inputs</code> argument of the Datomic <code class="inline">q</code> function. <strong>IMPORTANT:</strong> 
+These bindings are converted to edn strings which are read back in the Clojure 
+peer and then passed to Clojure <code class="inline">eval</code>. Since any arbitrary Clojure forms that 
+are passed in are evaluated, <strong>you must be particularly careful that the bindings 
+are sanitized</strong> and that you are not passing anything in <code class="inline">{:list, [...]}</code> 
+expressions that you don’t control.</p>
+<p>Bindings may include <code class="inline">datomic_gen_server.peer/*db*</code> for the current database
+(or the <code class="inline">db</code> shortcut below), as well as the forms produced by <code class="inline">as_of</code> and
+<code class="inline">since</code> below. These accept transaction times or transaction IDs.</p>
 <p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
 the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a <code class="inline">:message_timeout</code> 
 option that specifies how long the GenServer should wait for a response before 
@@ -1665,12 +1859,12 @@ the question mark is to be prepended.</p>
 
   </section>
 </div>
-<div class="detail" id="seed/4">
+<div class="detail" id="since/1">
   <div class="detail-header">
-    <a href="#seed/4" class="detail-link" title="Link to this function">
+    <a href="#since/1" class="detail-link" title="Link to this function">
       <i class="icon-link"></i>
     </a>
-    <span class="signature">seed(server_identifier, migration_path, seed_data_path, options \\ [])</span>
+    <span class="signature">since(tx_id)</span>
       
   </div>
   
@@ -1678,40 +1872,22 @@ the question mark is to be prepended.</p>
       <h4 class="specs-title">Specs</h4>
       <div class="specs-list">
         
-          <pre><code class="elixir">seed(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="DatomicGenServer.html#t:send_option/0">DatomicGenServer.send_option</a>]) ::
-  {:ok, <a href="DatomicGenServer.Db.DatomicTransaction.html#t:t/0">DatomicGenServer.Db.DatomicTransaction.t</a>} |
-  {:error, term}</code></pre>
+          <pre><code class="elixir">since(integer) :: {:list, [Exdn.exdn]}</code></pre>
         
       </div>
     </div>
   
   <section class="docstring">
-    <p>Issues a call to net.phobot.datomic/seed to seed a database using database 
-migration files and seed data files in edn format. The database is not dropped
-or recreated before migrating and seeding.</p>
-<p>The first parameter to this function is the pid or alias of the GenServer process; 
-the second is the path to the directory containing the migration files. The 
-third parameter is the path to a (different) directory containing the seed data 
-files. The migration files will be processed in the sort order of their directory, 
-and then the seed data files in the sort order of their directory. </p>
-<p>Seed data is loaded in a single transaction. The return value of the function 
-is the result of the Datomic <code class="inline">transact</code> API function call that executed the
-transaction, wrapped in a <code class="inline">DatomicTransaction</code> struct.</p>
-<p>The Clojure Conformity library is used to keep the migrations idempotent, but
-the loading of seed data is not idempotent.</p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+    <p>Convenience function to allow passing a call to the Datomic <code class="inline">since</code> API function
+when creating data source bindings to a query or transaction. </p>
+<p>Accepts an integer as its argument, representing a transaction number or 
+transaction ID. Dates are not yet supported.</p>
 <h2>Example</h2>
-<pre><code class="elixir">migration_dir = Path.join [System.cwd(), &quot;migrations&quot;]
-seed_data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
-DatomicGenServer.seed(DatomicGenServer, migration_dir, seed_data_dir)
-
-=&gt; {:ok, &quot;{:db-before {:basis-t 1000}, :db-after {:basis-t 1000}, ...</code></pre>
+<pre><code class="elixir">Db.q(DatomicGenServer, 
+      [:find, Db.q?(:c), :in, Db.implicit, Db.q?(:docstring), 
+       :where, [Db.q?(:c), Db.doc, Db.q?(:docstring)]], 
+     [Db.since(transaction.basis_t_after), &quot;A person&#39;s address&quot;]
+)</code></pre>
 
   </section>
 </div>
@@ -1753,7 +1929,7 @@ as used, for example, in: <code class="inline">[:find ?e . :where [?e age 42] ]<
       <div class="specs-list">
         
           <pre><code class="elixir">transact(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, [Exdn.exdn], [<a href="DatomicGenServer.html#t:send_option/0">DatomicGenServer.send_option</a>]) ::
-  {:ok, <a href="DatomicGenServer.Db.DatomicTransaction.html#t:t/0">DatomicGenServer.Db.DatomicTransaction.t</a>} |
+  {:ok, <a href="DatomicTransaction.html#t:t/0">DatomicTransaction.t</a>} |
   {:error, term}</code></pre>
         
       </div>
@@ -2271,7 +2447,7 @@ Db.transact(DatomicGenServer, data_to_add)
       <p>
         <span class="line">
           Built using
-          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" rel="help" target="_blank">ExDoc</a> (v0.11.3),
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" rel="help" target="_blank">ExDoc</a> (v0.11.4),
         </span>
         <span class="line">
           designed by
@@ -2283,7 +2459,7 @@ Db.transact(DatomicGenServer, data_to_add)
   </div>
 </section>
 </div>
-  <script src=""></script>
+  <script src="dist/app-6d2e071366.js"></script>
   </body>
 </html>
 
