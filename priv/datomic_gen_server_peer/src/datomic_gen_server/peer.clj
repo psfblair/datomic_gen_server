@@ -78,37 +78,70 @@
     ; run-migrations calls doseq, which returns nil, so migrate does not supply a db-after.
     {:db-after (deref (datomic/sync connection) migration-timeout-ms nil)}))
 
-(defn- load-data [db-url connection data-resource-path]
+(defn- load-data [connection data-resource-path]
   ;; TODO Figure out a better way to handle logging
   (let [logger-fn (fn [& args] nil)
         completed-future (transact-seed-data connection data-resource-path logger-fn)]
     @completed-future))
+
+(defn- new-state [result active-db-value active-connection db-map]
+  { :result result 
+    :active-db active-db-value 
+    :active-connection active-connection
+    :db-snapshots db-map
+  })
   
 ; Returns the result along with the state of the database, or nil if shut down.
 ; Results are vectors starting with :ok or :error so that they go back to Elixir
 ; as the corresponding tuples.
-(defn- process-message [message database connection db-url]
+(defn- process-message [message database connection db-map real-connection]
   (try
     (match message
       ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
-      [:q id edn binding-edn] {:db database :result [:ok id (q database edn binding-edn)]}
-      [:entity id edn attr-names] {:db database :result [:ok id (entity database edn attr-names)]}
-      [:transact id edn] 
-          (let [result (transact connection edn)]
-            {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
-      [:migrate id migration-path] 
-          (let [result (migrate connection migration-path)]
-            {:db (result :db-after) :result [:ok id :migrated]})
-      [:load id data-resource-path] 
-          (let [result (load-data db-url connection data-resource-path)]
-            {:db (result :db-after) :result [:ok id (serialize-transaction-response result)]})
-      [:ping] {:db database :result [:ok :ping]}
+      [:q message-id edn binding-edn]
+          (let [response [:ok message-id (q database edn binding-edn)]]
+            (new-state response database connection db-map))
+      [:entity message-id edn attr-names]
+          (let [response [:ok message-id (entity database edn attr-names)]]
+            (new-state response database connection db-map))
+      [:transact message-id edn] 
+          (let [transaction-result (transact connection edn)
+                db-after (transaction-result :db-after)
+                response [:ok message-id (serialize-transaction-response transaction-result)]]
+            (new-state response db-after connection db-map))
+      [:migrate message-id migration-path] 
+          (let [transaction-result (migrate connection migration-path)
+                db-after (transaction-result :db-after)
+                response [:ok message-id :migrated]]
+            (new-state response db-after connection db-map))
+      [:load message-id data-resource-path] 
+          (let [transaction-result (load-data connection data-resource-path)
+                db-after (transaction-result :db-after)
+                response [:ok message-id (serialize-transaction-response transaction-result)]]
+            (new-state response db-after connection db-map))
+      [:mock message-id db_key] 
+          (let [{new-db :db mock-connection :connection updated-db-map :db-map} 
+                {:db database :connection :db-map connection db-map}
+                response [:ok message-id db_key]]
+            (new-state response new-db mock-connection updated-db-map))
+      [:reset message-id db_key] 
+          (let [{new-db :db mock-connection :connection updated-db-map :db-map} 
+                {:db database :connection :db-map connection db-map}
+                response [:ok message-id db_key]]
+            (new-state response new-db mock-connection updated-db-map))
+      [:unmock message-id]             
+          (let [real-db database
+                response [:ok message-id]]
+            (new-state response real-db real-connection db-map))
+      [:ping]
+          (let [response [:ok :ping]]
+            (new-state response database connection db-map))
       [:stop] (do (datomic/shutdown false) nil) ; For testing from Clojure; does not release Clojure resources
       [:exit] (do (datomic/shutdown true) nil) ; Shuts down Clojure resources as part of JVM shutdown
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
     (catch Exception e 
-      (let [response {:db database :result [:error message e]}]
-        response))))
+      (let [response [:error message e]]
+        (new-state response database connection db-map)))))
 
 (defn- exit-loop [in out] 
   (do
@@ -119,15 +152,17 @@
 (defn start-server 
   ([db-url in out] (start-server db-url in out false))
   ([db-url in out create?]
-    (let [connection (connect db-url create?)]
+    (let [real-connection (connect db-url create?)]
       (<!! (go 
-        (loop [database (datomic/db connection)]
+        (loop [database (datomic/db real-connection)
+               active-connection real-connection ;allows mocking
+               db-map {}]
           (let [message (<! in)
-                result (process-message message database connection db-url)]
+                result (process-message message database active-connection db-map real-connection)]
             (if (some? result)
               (do
                 (>! out (result :result))
-                (recur (result :db)))
+                (recur (result :active-db)(result :active-connection)(result :db-snapshots)))
               (exit-loop in out))))))))) ; exit if we get a nil back from process-message.
 
 (defn -main [& args]
@@ -143,18 +178,38 @@
         
 ; TODO:
 ; 1. When we send the :mock message, we:
-;   a. Check the environment to see if mocking is enabled
-;   b. If mocking is not enabled, return the current db, the map, the real connection, and the real connection as the active one
+;   a. Check system property to see if mocking is enabled #(Boolean/getBoolean "datomic.mocking") 
+;   b. If mocking is not enabled, return 
+;             the current db, 
+;             the real connection as the "active" one
+;             the unchanged map of db values, and
+;             the real connection 
 ;   c. Otherwise, we create a new mock connection with the current db value
 ;   d. Save the db value as a "starting-point" db in a map of dbs with the key passed by mock
-;   e. Return the db, the map of db values, the real connection, and the mocked connection as the active one
+;   e. Return
+;             the "starting-point" db, 
+;             the mocked connection as the "active" one
+;             the map of db values, and 
+;             the real connection 
 ;   
 ; 2. When we send a new message we continue to use the current db and connection,
 ;     but have to pass those same 4 things out of the loop.
 ; 
 ; 3. When we send a :reset message, we
-;   a. Check the environment to see if mocking is enabled
+;   a. Check system property to see if mocking is enabled #(Boolean/getBoolean "datomic.mocking") 
 ;   b. If mocking is not enabled, return the current db, the map, the real connection, and the real connection as the active one
-;   c. Use the key in the :reset message to get the db we are resetting to, with a special key for "live"
-;   d. If we are resetting to the live db we use the real connection and get the db from it.
-;      Otherwise, we get the db using the key, and create a new mocked connection from it.
+;   c. Use the key in the :reset message to get the db we are resetting to
+;   d. Create a new mocked connection from the db.
+;   e. Return
+;             the db that you reset to, 
+;             the mocked connection as the "active" one
+;             the map of db values, and 
+;             the real connection 
+;
+; 4. When we send an :unmock message, we
+;   a. We use the real connection and get the db from it.
+;   b. Return
+;             the real db, 
+;             the real connection as the "active" one
+;             the unchanged map of db values, and 
+;             the real connection

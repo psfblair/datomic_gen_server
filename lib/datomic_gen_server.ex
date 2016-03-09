@@ -352,7 +352,9 @@ defmodule DatomicGenServer do
   defp start_jvm_command(db_uri, create?) do
     create_str = if create?, do: "true", else: ""
     working_directory = "#{:code.priv_dir(:datomic_gen_server)}/datomic_gen_server_peer"
-    command = "java -cp target/peer*standalone.jar datomic_gen_server.peer #{db_uri} #{create_str}"
+    allow_mocking? = if Application.get_env(:datomic_gen_server, :allow_datomic_mocking?), 
+                      do: "-Ddatomic.mocking=true", else: ""
+    command = "java -cp target/peer*standalone.jar #{allow_mocking?} datomic_gen_server.peer #{db_uri} #{create_str}"
     {working_directory, command}
   end
   
