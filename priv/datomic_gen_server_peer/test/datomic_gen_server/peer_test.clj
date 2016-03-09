@@ -23,6 +23,7 @@
         (close! in)
         (close! out)
         (close! exit-channel)
+        (datomic/delete-database db-uri)
       ))))
       
 (use-fixtures :each db-fixture)
@@ -186,62 +187,109 @@
          (let [query-result (read-edn-response (<!! out))]
            (is (= #{[:person/address]} query-result))))))
 
-;; TODO - Change to test use of mock connections. :with is no longer a valid message.
-; (deftest test-with-with
-;   (testing "Can use a mock connection on a just-migrated database"
-;     (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
-;                                                 "test" "resources" "migrations")]
-;       (>!! in [:seed 10 (.getPath migration-dir) (.getPath seed-dir)]))
-; 
-;     (>!! in [:transact 15 "[ { :db/id #db/id[:db.part/db]
-;                                :db/ident :business/address
-;                                :db/valueType :db.type/string
-;                                :db/cardinality :db.cardinality/one
-;                                :db/doc \"A business's address\"
-;                                :db.install/_attribute :db.part/db}]"])
-;     (<!! out)
-;       
-;     (>!! in [:transact 16 "[ { :db/id #db/id[:db.part/user]
-;                                :business/address \"222 Main Timeline St.\"}]"])
-;     (let [init-data (read-edn-response (<!! out))
-;           basis-t-before ((init-data :db-before) :basis-t)
-;           basis-t-after ((init-data :db-after) :basis-t)
-;           as-of-before (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-before ")")
-;           as-of-after (str "(datomic.api/as-of datomic_gen_server.peer/*db* " basis-t-after ")")
-;           ]
-;       (>!! in [:with 17 "[ { :db/id #db/id[:db.part/user]
-;                               :business/address \"1980 Speculative Road\"}]" as-of-before])
-;       (let [ speculative-response (<!! out)
-;              speculative-data (read-edn-response speculative-response)
-;              ; NOTE: basis-t is not useful here. The basis-t before is still the latest
-;              ; t that could be reached from *db* before the speculative transaction,
-;              ; which is the db-after of the previous transaction, even though the
-;              ; speculative transaction was against the basis-t-before of the previous
-;              ; transaction. In addition, the db-after returned by `when` does not 
-;              ; differ from the db-before value -- they are both still the latest t
-;              ; that could be reached from *db* and does not include the speculative transaction.
-;              speculative-tx-id ((first (speculative-data :tx-data)) :tx)
-;              as-of-speculative 
-;                 (str "(datomic.api/as-of datomic_gen_server.peer/*db* " speculative-tx-id ")")
-;              query "[:find ?e :in $ ?address :where [?e :business/address ?address]]"]
-; 
-;         (is (= basis-t-before speculative-basis-t-before))
-;         
-;         (>!! in [:q 18 query (list as-of-speculative "\"222 Main Timeline St.\"")])
-;         
-;         (is (= #{} (read-edn-response (<!! out))))
-;         
-;         (>!! in [:q 19 query (list as-of-speculative "\"1980 Speculative Road\"")])
-;         
-;         (let [entity-id (first (first (read-edn-response (<!! out))))]
-;           (is (< 0 entity-id)))
-;           
-;         (>!! in [:q 20 query (list as-of-after "\"222 Main Timeline St.\"")])
-;           
-;         (let [entity-id (first (first (read-edn-response (<!! out))))]
-;           (is (< 0 entity-id)))
-;           
-;         (>!! in [:q 21 query (list as-of-after "\"1980 Speculative Road\"")])
-;           
-;         (is (= #{} (read-edn-response (<!! out))))
-;       ))))
+(deftest test-mocking
+  (testing "Can use a mock connection on a just-migrated database"
+    (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir") 
+                                                "test" "resources" "migrations")]
+      (>!! in [:migrate 18 (.getPath migration-dir)]))
+    (<!! out)
+  
+  ; (let [seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
+  ;   (>!! in [:load 11 (.getPath seed-dir)]))
+  ; (<!! out) 
+    ; Test mock
+    (System/setProperty "datomic.mocking" "true")
+    
+    (>!! in [:mock 19 :freshly-migrated])
+    (is (= [:ok 19 :freshly-migrated] (<!! out)))
+
+    (>!! in [:q 20 "[:find ?c :where [?e :db/doc \"A category's name\"] [?e :db/ident ?c]]" '()])
+    (is (= [:ok 20 "#{[:category/name]}\n"] (<!! out)))
+
+    (>!! in [:q 21 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 21 "#{}\n"] (<!! out)))
+    
+    (>!! in [:transact 22 "[ { :db/id #db/id[:test/main]
+                               :category/name \"Sports\"}]"])
+    (<!! out)
+    
+    (>!! in [:q 23 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+
+    ; Test reset
+    (>!! in [:reset 24 :freshly-migrated])
+    (is (= [:ok 24 :freshly-migrated] (<!! out)))
+
+    (>!! in [:q 25 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 25 "#{}\n"] (<!! out)))
+
+    (>!! in [:transact 26 "[ { :db/id #db/id[:test/main]
+                               :category/name \"Sports\"}]"])
+    (<!! out)
+    
+    (>!! in [:q 27 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+
+    ; Test unmock
+    (>!! in [:unmock 28])
+    (is (= [:ok 28] (<!! out)))
+    
+    (>!! in [:q 29 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 29 "#{}\n"] (<!! out)))
+    
+    (>!! in [:transact 30 "[ { :db/id #db/id[:test/main]
+                               :category/name \"Sports\"}]"])
+    (<!! out)
+    
+    (>!! in [:q 31 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    ; Make sure mock starts with new db state, but doesn't change saved or active state
+    (>!! in [:mock 32 :with-sports])
+    (is (= [:ok 32 :with-sports] (<!! out)))
+    
+    (>!! in [:q 33 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+      
+    (>!! in [:q 34 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (is (= [:ok 34 "#{}\n"] (<!! out)))
+      
+    (>!! in [:transact 35 "[ { :db/id #db/id[:test/main]
+                               :category/name \"News\"}]"])
+    (<!! out)
+    
+    (>!! in [:q 36 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+      
+    (>!! in [:q 37 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+    
+    ; Go back to freshly-migrated db with neither Sports nor News
+    (>!! in [:reset 38 :freshly-migrated])
+    (is (= [:ok 38 :freshly-migrated] (<!! out)))
+
+    (>!! in [:q 39 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (is (= [:ok 39 "#{}\n"] (<!! out)))
+      
+    (>!! in [:q 40 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (is (= [:ok 40 "#{}\n"] (<!! out)))
+    
+    ; Go back to active db/connection with Sports but not News
+    (>!! in [:unmock 41])
+    (is (= [:ok 41] (<!! out)))
+    
+    (>!! in [:q 42 (str "[:find ?e :where [?e :category/name \"Sports\"]]") '()])
+    (let [query-result (read-edn-response (<!! out))]
+      (is (= 1 (count query-result))))
+      
+    (>!! in [:q 43 (str "[:find ?e :where [?e :category/name \"News\"]]") '()])
+    (is (= [:ok 43 "#{}\n"] (<!! out)))
+    
+    (System/setProperty "datomic.mocking" "false")
+  ))

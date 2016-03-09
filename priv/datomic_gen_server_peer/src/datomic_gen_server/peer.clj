@@ -84,6 +84,22 @@
         completed-future (transact-seed-data connection data-resource-path logger-fn)]
     @completed-future))
 
+(defn- mock-connection [starting-point-db active-connection db-map db-key]
+  (if (Boolean/getBoolean "datomic.mocking")
+    (let [mocked-conn (datomock/mock-conn starting-point-db)
+          updated-db-map (assoc db-map db-key starting-point-db)]
+      {:db starting-point-db :connection mocked-conn :db-map updated-db-map})
+    {:db starting-point-db :connection active-connection :db-map db-map}
+  ))
+  
+(defn- reset-to-mock [db-map db-key active-db active-connection]
+  (if (Boolean/getBoolean "datomic.mocking")
+    (let [starting-point-db (db-map db-key)
+          mocked-conn (datomock/mock-conn starting-point-db)]
+      {:db starting-point-db :connection mocked-conn :db-map db-map})
+    {:db active-db :connection active-connection :db-map db-map}
+  ))
+  
 (defn- new-state [result active-db-value active-connection db-map]
   { :result result 
     :active-db active-db-value 
@@ -119,18 +135,18 @@
                 db-after (transaction-result :db-after)
                 response [:ok message-id (serialize-transaction-response transaction-result)]]
             (new-state response db-after connection db-map))
-      [:mock message-id db_key] 
+      [:mock message-id db-key] 
           (let [{new-db :db mock-connection :connection updated-db-map :db-map} 
-                {:db database :connection :db-map connection db-map}
-                response [:ok message-id db_key]]
+                  (mock-connection database connection db-map db-key)
+                response [:ok message-id db-key]]
             (new-state response new-db mock-connection updated-db-map))
-      [:reset message-id db_key] 
-          (let [{new-db :db mock-connection :connection updated-db-map :db-map} 
-                {:db database :connection :db-map connection db-map}
-                response [:ok message-id db_key]]
+      [:reset message-id db-key] 
+          (let [{new-db :db mock-connection :connection updated-db-map :db-map}
+                  (reset-to-mock db-map db-key database connection)
+                response [:ok message-id db-key]]
             (new-state response new-db mock-connection updated-db-map))
       [:unmock message-id]             
-          (let [real-db database
+          (let [real-db (datomic/db real-connection)
                 response [:ok message-id]]
             (new-state response real-db real-connection db-map))
       [:ping]
