@@ -76,6 +76,46 @@ defmodule DatomicGenServer.DbTest do
     assert 1 == Enum.count(query_result)
   end
   
+  test "will evaluate Clojure forms passed as lists in bindings" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"animal/species",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "An animal's species",
+        Db.install_attribute => Db.schema_partition
+    }]
+    
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
+
+    query = [:find, Db.q?(:e), :in, Db.implicit, Db.q?(:idmin), :where,
+              [Db.q?(:e), Db.ident, :"animal/species"], Db._expr(:>, [Db.q?(:e), Db.q?(:idmin)]) ]
+              
+    {:ok, query_result} = Db.q(DatomicGenServer, query, [Db.db, {:list, [:-, 1, 1]} ])
+                            
+    assert 1 == Enum.count(query_result)
+  end
+  
+  test "does not evaluate escaped bindings" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"animal/phylum",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "An animal's phylum",
+        Db.install_attribute => Db.schema_partition
+    }]
+    
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
+
+    query = [:find, Db.q?(:e), :in, Db.implicit, Db.q?(:idmin), :where,
+              [Db.q?(:e), Db.ident, :"animal/phylum"], Db._expr(:>, [Db.q?(:e), Db.q?(:idmin)]) ]
+              
+    {:error, query_result} = Db.q(DatomicGenServer, query, [Db.db, "(- 1 1)"])
+                            
+    assert Regex.match?(~r/java.lang.Long cannot be cast to java.lang.String/, query_result)
+  end
+  
   test "can issue as-of queries" do
     data_to_add = [%{ 
         Db.id => Db.dbid(Db.schema_partition),
@@ -227,6 +267,33 @@ defmodule DatomicGenServer.DbTest do
     assert Regex.match?(~r/Exception/, transaction_result)
   end
   
+  test "Creates an or-join clause" do
+    clause = Db._or_join(
+      [ Db.q?(:person) ],
+      [ Db._and([
+          [Db.q?(:employer), :"business/employee", Db.q?(:person)],
+          [Db.q?(:employer), :"business/nonprofit", true]
+        ]),
+        [Db.q?(:person), :"person/age", 65]
+      ])
+    
+    expected = {:list, 
+                [
+                  {:symbol, :"or-join"}, 
+                  [{:symbol, :"?person"}], 
+                  {:list, [{:symbol, :"and"}, 
+                              [ {:symbol, :"?employer"}, :"business/employee", {:symbol, :"?person"}], 
+                              [ {:symbol, :"?employer"}, :"business/nonprofit", true]]},
+                  [{:symbol, :"?person"}, :"person/age", 65]
+                ]}
+     
+    assert expected == clause
+  end
+  test "Creates a Clojure expression inside a vector" do
+    expression = Db._expr(:>, [Db.q?(:e), Db.q?(:idmin)])
+    assert [{:list, [{:symbol, :>}, {:symbol, :"?e"}, {:symbol, :"?idmin"}]}] == expression
+  end
+
   # TODO Add tests that use inS, history, bindings and find specifications,
   # and clauses.
   

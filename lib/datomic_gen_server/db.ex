@@ -610,7 +610,7 @@ defmodule DatomicGenServer.Db do
 
   """  
   @spec as_of(integer) :: {:list, [Exdn.exdn] }
-  def as_of(tx_id), do: datomic_expression(:"datomic.api/as-of", [db, tx_id])
+  def as_of(tx_id), do: clojure_expression(:"datomic.api/as-of", [db, tx_id])
   
   # TODO Allow dates
   @doc """
@@ -630,7 +630,7 @@ defmodule DatomicGenServer.Db do
 
   """  
   @spec since(integer) :: {:list, [Exdn.exdn] }
-  def since(tx_id), do: datomic_expression(:"datomic.api/since", [db, tx_id])
+  def since(tx_id), do: clojure_expression(:"datomic.api/since", [db, tx_id])
 
   @doc """
   Convenience shortcut to allw passing a call to the Datomic `history` API function
@@ -640,7 +640,7 @@ defmodule DatomicGenServer.Db do
   supported.
   """  
   @spec history :: {:list, [Exdn.exdn] }
-  def history, do: datomic_expression(:"datomic.api/history", [db])
+  def history, do: clojure_expression(:"datomic.api/history", [db])
   
   # Bindings and find specifications
   @doc """
@@ -683,7 +683,7 @@ defmodule DatomicGenServer.Db do
 
   """  
   @spec _not([Exdn.exdn]) :: {:list, [Exdn.exdn]}
-  def _not(inner_clause), do: datomic_expression(:not, [inner_clause])
+  def _not(inner_clause), do: clojure_expression(:not, [inner_clause])
 
   @doc """
   Convenience shortcut for creating a `not-join` clause.
@@ -710,7 +710,7 @@ defmodule DatomicGenServer.Db do
   @spec _not_join([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _not_join(binding_list, inner_clause_list) do
     clauses_including_bindings = [ binding_list | inner_clause_list ]
-    datomic_expression(:"not-join", clauses_including_bindings)
+    clojure_expression(:"not-join", clauses_including_bindings)
   end
 
   @doc """
@@ -733,7 +733,7 @@ defmodule DatomicGenServer.Db do
 
   """  
   @spec _or([Exdn.exdn]) :: {:list, [Exdn.exdn]}
-  def _or(inner_clauses), do: datomic_expression(:or, inner_clauses)
+  def _or(inner_clauses), do: clojure_expression(:or, inner_clauses)
 
   @doc """
   Convenience shortcut for creating an `and` clause.
@@ -758,7 +758,7 @@ defmodule DatomicGenServer.Db do
 
   """
   @spec _and([Exdn.exdn]) :: {:list, [Exdn.exdn]}
-  def _and(inner_clauses), do: datomic_expression(:and, inner_clauses)
+  def _and(inner_clauses), do: clojure_expression(:and, inner_clauses)
 
   @doc """
   Convenience shortcut for creating an `or-join` clause.
@@ -774,10 +774,10 @@ defmodule DatomicGenServer.Db do
       Db._or_join(
         [ Db.q?(:person) ],
         [ Db._and([
-            [Db.q?(:employer), :"business/employee" Db.q?(:person)],
-            [Db.q?(:employer), :"business/nonprofit" true]
+            [Db.q?(:employer), :"business/employee", Db.q?(:person)],
+            [Db.q?(:employer), :"business/nonprofit", true]
           ]),
-          [Db.q?(:person), :"person/age" 65]
+          [Db.q?(:person), :"person/age", 65]
         ]
       )
       
@@ -785,14 +785,14 @@ defmodule DatomicGenServer.Db do
           
       (or-join [?person]
              (and [?employer :business/employee ?person]
-                  [?employer :business/nonprofit true]))
+                  [?employer :business/nonprofit true])
              [?person :person/age 65])
 
   """
   @spec _or_join([{:symbol, atom},...], [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _or_join(binding_list, inner_clause_list) do
     clauses_including_bindings = [ binding_list | inner_clause_list ]
-    datomic_expression(:"or-join", clauses_including_bindings)
+    clojure_expression(:"or-join", clauses_including_bindings)
   end
 
   @doc """
@@ -812,11 +812,12 @@ defmodule DatomicGenServer.Db do
   """
   @spec _pull({:symbol, atom}, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
   def _pull({:symbol, entity_var}, pattern_clauses) do
-    datomic_expression(:pull, [entity_var, pattern_clauses])
+    clojure_expression(:pull, [entity_var, pattern_clauses])
   end
 
   @doc """
-  Convenience shortcut for creating a Datomic expression clause. 
+  Convenience shortcut for creating a Datomic expression clause. Note that this
+  is *not* the same as a simple Clojure expression inside parentheses.
   
   An expression clause allows arbitrary Java or Clojure functions to be used 
   inside of Datalog queries; they are either of form `[(predicate ...)]` or 
@@ -827,13 +828,13 @@ defmodule DatomicGenServer.Db do
   function allows us not to have to sprinkle that syntax all over the place.
   """
   @spec _expr(atom, [Exdn.exdn], [Exdn.exdn]) :: [{:list, [Exdn.exdn]}]
-  def _expr(function_symbol, remaining_expressions, bindings) do
-    [ datomic_expression(function_symbol, remaining_expressions) | bindings ]
+  def _expr(function_symbol, remaining_expressions, bindings \\ []) do
+    [ clojure_expression(function_symbol, remaining_expressions) | bindings ]
   end
 
-  # An expression is a list starting with a symbol
-  @spec datomic_expression(atom, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
-  defp datomic_expression(symbol_atom, remaining_expressions) do
+  # A Clojure expression is a list starting with a symbol
+  @spec clojure_expression(atom, [Exdn.exdn]) :: {:list, [Exdn.exdn]}
+  defp clojure_expression(symbol_atom, remaining_expressions) do
     clause_list = [{:symbol, symbol_atom} | remaining_expressions ]
     {:list, clause_list}
   end

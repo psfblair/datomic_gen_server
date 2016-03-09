@@ -45,7 +45,10 @@ defmodule DatomicGenServer do
                            {:transact, integer, String.t} | 
                            {:entity, integer, String.t, [atom] | :all} |
                            {:migrate, integer, String.t} |
-                           {:load, integer, String.t}
+                           {:load, integer, String.t} |
+                           {:mock, integer, atom} |
+                           {:reset, integer, atom} |
+                           {:unmock, integer}
   @type datomic_call :: {datomic_message, message_timeout :: non_neg_integer}
   @type datomic_result :: {:ok, String.t} | {:error, term}
   @type start_option :: GenServer.option | {:default_message_timeout, non_neg_integer}
@@ -137,7 +140,20 @@ defmodule DatomicGenServer do
   This query is passed to the Datomic `q` API function.
   
   The first parameter to this function is the pid or alias of the GenServer process;
-  the second is the query. The options keyword list may include a `:client_timeout` 
+  the second is the query.
+  
+  The optional third parameter is a list of bindings for the data sources in the 
+  query, passed to the `inputs` argument of the Datomic `q` function. **IMPORTANT:** 
+  These bindings are passed in the form of edn strings which are read back in the  
+  Clojure peer and then passed to Clojure `eval`. Since any arbitrary Clojure forms  
+  that are passed in are evaluated, **you must be particularly careful that these  
+  bindings are sanitized** and that you are not passing anything that you don't
+  control. In general, you should prefer the `DatomicGenServer.Db.q/3` function
+  which accepts data structures and converts them to edn.
+  
+  Bindings may include `datomic_gen_server.peer/*db*` for the current database.  
+  
+  The options keyword list may include a `:client_timeout` 
   option that specifies the milliseconds timeout passed to GenServer.call, and a 
   `:message_timeout` option that specifies how long the GenServer should wait
   for a response before crashing (overriding the default value set in `start` or
@@ -155,12 +171,12 @@ defmodule DatomicGenServer do
   """
   @spec q(GenServer.server, String.t, [String.t], [send_option]) :: datomic_result
   def q(server_identifier, edn_str, bindings_edn \\ [], options \\ []) do
-    # Note that clojure-erltastic sends an empty list to Clojure as nil. This 
-    # interferes with wait_for_response - if an error comes back it expects to
+    # Note that clojure-erltastic sends empty lists to Clojure as `nil`. This 
+    # interferes with `wait_for_response` - if an error comes back it expects to
     # find the original message, but Clojure will return the original message as
-    # having a nil where we are waiting for the one we sent, which contains an
+    # having a `nil` where we are waiting for original message containing an
     # empty list. To protect against this situation we never send empty lists to
-    # Clojure; only nil.
+    # Clojure; only `nil`.
     bindings = if bindings_edn && ! Enum.empty?(bindings_edn) do bindings_edn else nil end
     msg_unique_id = :erlang.unique_integer([:monotonic])
     call_server(server_identifier, {:q, msg_unique_id, edn_str, bindings}, options)

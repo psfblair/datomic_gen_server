@@ -48,6 +48,42 @@ defmodule DatomicGenServerTest do
     assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
   end
   
+  test "will evaluate unescaped bindings" do
+    data_to_add = """
+      [ { :db/id #db/id[:db.part/db]
+          :db/ident :person/name
+          :db/valueType :db.type/string
+          :db/cardinality :db.cardinality/one
+          :db/doc \"A person's name\"
+          :db.install/_attribute :db.part/db}]
+    """
+    {:ok, _} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+
+    query = "[:find ?e :in $ ?idmin :where [?e :db/ident :person/name][(> ?e ?idmin)]]"
+    {:ok, result_str} = DatomicGenServer.q(DatomicGenServer, query, 
+                            ["datomic_gen_server.peer/*db*", "(- 1 1)"])
+                            
+    assert Regex.match?(~r/\#\{\[\d+\]\}\n/, result_str)
+  end
+  
+  test "does not evaluate escaped bindings" do
+    data_to_add = """
+      [ { :db/id #db/id[:db.part/db]
+          :db/ident :person/name
+          :db/valueType :db.type/string
+          :db/cardinality :db.cardinality/one
+          :db/doc \"A person's name\"
+          :db.install/_attribute :db.part/db}]
+    """
+    {:ok, _} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+
+    query = "[:find ?e :in $ ?idmin :where [?e :db/ident :person/name][(> ?e ?idmin)]]"
+    {:error, result_str} = DatomicGenServer.q(DatomicGenServer, query, 
+                            ["datomic_gen_server.peer/*db*", "\"(- 1 1)\""])
+                            
+    assert Regex.match?(~r/java.lang.Long cannot be cast to java.lang.String/, result_str)
+  end
+  
   test "can issue as-of queries" do
     data_to_add = [%{ 
         Db.id => Db.dbid(Db.schema_partition),
