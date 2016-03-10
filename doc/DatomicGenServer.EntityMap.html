@@ -1,0 +1,1470 @@
+    <!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="ExDoc v0.11.4">
+    <title>DatomicGenServer.EntityMap – datomic_gen_server v2.0.0</title>
+    <link rel="stylesheet" href="dist/app-1e374caa3d.css" />
+    <script src="dist/sidebar_items.js"></script>
+  </head>
+  <body data-type="modules">
+
+    <div class="main">
+<button class="sidebar-toggle">
+  <i class="icon-menu"></i>
+</button>
+<section class="sidebar">
+  <button class="sidebar-toggle">
+    <i class="icon-menu"></i>
+  </button>
+
+  
+  <a href="api-reference.html" class="sidebar-projectLink">
+    <div class="sidebar-projectDetails">
+      <h1 class="sidebar-projectName">
+        datomic_gen_server
+      </h1>
+      <h2 class="sidebar-projectVersion">
+        v2.0.0
+      </h2>
+    </div>
+    
+  </a>
+
+  <div class="sidebar-search">
+    <i class="icon-search"></i>
+    <input type="text" class="sidebar-searchInput" placeholder="search" autocomplete="off" />
+  </div>
+
+  <ul class="sidebar-listNav">
+    <li><a id="extras-list" href="#full-list">Pages</a></li>
+
+    
+      <li><a id="modules-list" href="#full-list">Modules</a></li>
+    
+
+    
+
+    
+  </ul>
+
+  <ul id="full-list" class="sidebar-fullList"></ul>
+  <div class="sidebar-noResults"></div>
+</section>
+
+<section class="content">
+  <div id="content" class="content-inner">
+
+
+      <h1>
+        <small class="visible-xs">datomic_gen_server v2.0.0</small>
+        DatomicGenServer.EntityMap
+        
+        
+      </h1>
+
+      
+        <section id="moduledoc" class="docstring">
+          <p>  DatomicGenServer.EntityMap is a data structure designed to store the results
+  of Datomic queries and transactions in a map of maps or structs. The keys
+  of the <code class="inline">EntityMap</code> are by default Datomic entity IDs, but you may also index
+  the map using other attributes as keys.</p>
+<p>  An <code class="inline">EntityMap</code> may be created from data tuples, records, or rows. A <code class="inline">DataTuple</code>
+  is a generalization of <a href="Datom.html"><code class="inline">Datom</code></a> which contains <code class="inline">e</code>, <code class="inline">a</code>, <code class="inline">v</code>, and <code class="inline">added</code> 
+  fields, where <code class="inline">v</code> may be a scalar value or a collection. A record in this
+  context is simply a map of attributes to values. A row is a list of 
+  attribute values, which must be accompanied by a “header row” containing
+  a list of attribute keys in the same list position as their corresponding
+  attribute values — i.e., the first key in the header is the attribute key
+  for the first value in each of the rows, etc.</p>
+<p>  The main functions for creting an <code class="inline">EntityMap</code> are <code class="inline">new</code> (to create from
+  data tuples), <code class="inline">from_records</code>, <code class="inline">from_rows</code>, and <code class="inline">from_transaction</code> (to 
+  create from a Datomic transaction). An <code class="inline">EntityMap</code> may be updated using 
+  <code class="inline">update</code> (from data tuples), <code class="inline">update_from_records</code>, <code class="inline">update_from_rows</code>,
+  and <code class="inline">update_from_transaction</code>. An entity may be retrieved using <code class="inline">get</code>, and
+  a single attribute from an entity using <code class="inline">get_attr</code>.</p>
+<p>  When creating an <code class="inline">EntityMap</code> you may specify the attribute key to index by
+  and the struct into which to place attribute values (along with a translation
+  table for mapping the keys in the incoming data to any fields in the struct
+  that might have different names). You must also specify any cardinality many 
+  attributes; these values are contained in sets: If a data tuple contains a
+  scalar value for a cardinality many attribute, then that value is added to
+  the set of values for that attribute (or removed, in the case of retraction).
+  If a data tuple contains a collection as a value for a cardinality many 
+  attribute, the values are added to or removed from the set of values for
+  that attribute.</p>
+<p>  When working with records and rows, the behavior is different: The value 
+  for a cardinality many attribute in a row or record should always be a
+  collection, and will always replace any pre-existing set of attributes.
+  In other words, using records and rows always assumes that a single record
+  or row contains the entire accumulated value for an attribute. There are no
+  separate addition and retraction operations for records and rows; any
+  attribute values in a record or row replace prior values. If a record or
+  row does not contain an entry for a particular attribute, that attribute
+  is left in its prior state.</p>
+<p>  Empty collections and <code class="inline">nil</code> are “magic values” with a special behavior. 
+  When working with data tuples, either adding or retracting <code class="inline">nil</code> from a
+  scalar attribute deletes the key for that attribute from the attribute map.
+  Adding or retracting an empty collection (list or set) from a cardinality
+  many attribute resets that value to the empty set. If you want to completely
+  replace a set of values for a cardinality many attribute with a different
+  set, you would first retract <code class="inline">nil</code> for that attribute and then add the new
+  attribute values. Note that <code class="inline">nil</code> and the empty collection always override
+  any other values provided for the same operation (add or retract) for
+  that attribute in a group of data tuples. In other words, if you retract
+  a particular value and also retract <code class="inline">nil</code> in the same collection of 
+  data tuples, the <code class="inline">nil</code> wins; the same would go for adding <code class="inline">nil</code> along with
+  other values. (You can, however, retract <code class="inline">nil</code> and at the same time add
+  new values.)</p>
+<p>  When working with records and rows, if you supply <code class="inline">nil</code> or an empty 
+  collection as a value for an attribute, that value is removed from
+  the attribute map (or set to the empty set if the attribute is cardinality
+  many).</p>
+<p>  Note that internally, <code class="inline">EntityMap</code> uses an empty tuple as a null value marker. 
+  You should not use empty tuples in attribute values.</p>
+<p>  Empty entities — entities with no attribute values other than empty 
+  collections and the entity ID — are removed from the entity map.</p>
+<h2>Aggregation</h2>
+<p>  You can specify a struct to carry attribute values, along with a 
+  translation from the attribute keys in the raw data to the names of the
+  fields in the struct. Note that it is possible for an EntityMap to contain 
+  entities of different types, whereas an aggregator will narrow the 
+  EntityMap to entities of a single type — attribute maps that cannot be
+  aggregated into the struct will not appear in the aggregated map. Note,
+  however, that to be able to be aggregated into a struct, an attribute map
+  only needs to share one key with that struct — any attributes that the
+  map has that are not in the struct are discarded, and any fields of the
+  struct that are not present in the attribute map are set to their default
+  values. Note also that if you supply a translation table for attribute keys
+  to struct fields, if an attribute map already has a key with the same name
+  as a struct field, that value will still be mapped into the struct — i.e.,
+  if you provide a translation table that maps the attribute key <code class="inline">:identifier</code>
+  to <code class="inline">:id</code>, then any attribute values with the key <code class="inline">:identifier</code> will be put 
+  into the struct’s <code class="inline">id</code> field—but so will any attribute values with the key 
+  <code class="inline">:id</code>.</p>
+<p>  Since any entities failing aggregation aren’t included in the aggregated
+  map, you can use aggregators to filter an <code class="inline">EntityMap</code> to contain just those
+  entities that you want. (See e.g., the <code class="inline">aggregate_by</code> function, which
+  returns a new <code class="inline">EntityMap</code> containing the original data aggregated in a
+  new way.) This also allows you to create multiple <code class="inline">EntityMaps</code> from a 
+  single original <code class="inline">EntityMap</code>, each of which has an aggregated map that
+  references only certain entities in the data.</p>
+<p>  Internally, the <code class="inline">EntityMap</code> still contains all its original data,
+  so if you re-aggregate an already aggregated map, the new aggregation is
+  applied to all the data used to construct the original map, and not just 
+  to the data accessible in the already-aggregated map.</p>
+<h2>Indexing</h2>
+<p>  You can choose an attribute that will supply the keys for the <code class="inline">EntityMap</code>.
+  If the raw data for an entity does not contain a value for that attribute,
+  that entity will not appear in the indexed map.</p>
+<p>  If you are indexing an aggregated map, the possible keys are the names of 
+  the struct fields, not the names of the raw attributes those fields have
+  been translated from.</p>
+
+        </section>
+      
+
+      
+        <section id="summary" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#summary">
+              <i class="icon-link"></i>
+            </a>
+            Summary
+          </h1>
+          
+  <div class="summary-types summary">
+    <h2>
+      <a href="#types">Types</a>
+    </h2>
+    <div class="summary-row">
+  <div class="summary-signature">
+    <a href="#t:aggregate/0">aggregate()</a>
+  </div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#t:entity_map_option/0">entity_map_option()</a>
+  </div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#t:t/0">t()</a>
+  </div>
+  
+</div>
+
+  </div>
+
+
+          
+  <div class="summary-functions summary">
+    <h2>
+      <a href="#functions">Functions</a>
+    </h2>
+    <div class="summary-row">
+  <div class="summary-signature">
+    <a href="#aggregate_by/3">aggregate_by(entity_map, aggregate, new_index \\ nil)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> containing the same underlying data as the supplied
+<code class="inline">EntityMap</code>, but with the entity attributes contained in the given struct.
+The optional third argument is an atom representing the name of one of the 
+fields in the struct, whose values will be the keys in the returned <code class="inline">EntityMap</code></p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#delete/2">delete(entity_map, index_key)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> which is the supplied <code class="inline">EntityMap</code> with the entry for a 
+specific index key deleted. If the <code class="inline">EntityMap</code> is not indexed, the entity ID is 
+used. If the key does not exist, the <code class="inline">EntityMap</code> is returned unchanged</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#e_key/0">e_key()</a>
+  </div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#equal?/2">equal?(entity_map1, entity_map2)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns true if two EntityMaps contain equal aggregated data maps as well as 
+the same underlying data</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#from_records/3">from_records(record_maps_to_add, primary_key, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Creates a new <code class="inline">EntityMap</code> from a list of records. A record is a map of attribute 
+names to values</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#from_rows/4">from_rows(rows_to_add, header, primary_key, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Creates a new <code class="inline">EntityMap</code> from a list of rows. A row is a simple list of 
+attribute values. The header (second parameter) supplies a list of the attribute 
+names for these values</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#from_transaction/2">from_transaction(transaction, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Creates a new <code class="inline">EntityMap</code> from the datoms in a <a href="DatomicTransaction.html"><code class="inline">DatomicTransaction</code></a>. These and 
+the options are passed to the <code class="inline">new</code> function (see the documentation on that
+function)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#get/3">get(entity_map, index_key, default \\ nil)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns the value for a specific index key. If the key is not present, returns 
+the default value (or nil if there is no default value)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#get_attr/4">get_attr(entity_map, index_key, attr_key, default \\ nil)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns the value for a specific index key and attribute key.  If either key is
+not present in the <code class="inline">EntityMap</code> the default value is returned (or nil if no 
+default value is supplied)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#has_key?/2">has_key?(entity_map, index_key)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns a boolean indicating whether a given index key exists in the supplied 
+<code class="inline">EntityMap</code></p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#index_by/2">index_by(entity_map, attribute)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns a new EntityMap whose keys are values of a certain attribute or struct 
+field rather than the entity IDs</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#keys/1">keys(entity_map)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns all index keys from the map, in a list</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#new/2">new(data_tuples_to_add \\ [], options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Creates a new <code class="inline">EntityMap</code> from a list of <code class="inline">DataTuple</code>s. An <code class="inline">EntityMap</code> acts as a
+map of an entity id (or attribute value) to a map of an entity’s attributes</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#put/3">put(entity_map, record, primary_key)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an EntityMap with the given entity added. The supplied entity must
+be in the form of a map of attributes to values, including one attribute that
+specifies the entity ID (i.e., a value that would appear in the <code class="inline">e:</code> field of
+a <a href="Datom.html"><code class="inline">Datom</code></a> or <code class="inline">DataTuple</code>)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#put_attr/5">put_attr(entity_map, index_key, attr_key, val, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>When successful, returns an <code class="inline">:ok</code> tuple containing an <code class="inline">EntityMap</code> with an updated 
+value for a given entity’s attribute, where the entity is specified by its index 
+key. If either the index or attribute key does not exist, an <code class="inline">:error</code> tuple is
+returned</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#rename_keys/2">rename_keys(map, key_rename_map)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>A utility function that accepts a map and a translation table, and returns a
+new map whose keys have been renamed according to the translation table</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#set_defaults/1">set_defaults(options)</a>
+  </div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update/2">update(entity_map, data_tuples_to_update)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of data 
+tuples (both retractions and additions)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update_from_records/3">update_from_records(entity_map, record_maps, primary_key)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of  
+records. A record is a map of attribute names to values. One of those attribute 
+keys must point to the entity primary key — i.e., the same value that would 
+appear in the <code class="inline">e</code> value of a corresponding datom or DataTuple. This attribute 
+should be passed to the function as the third argument</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update_from_rows/4">update_from_rows(entity_map, rows_to_add, header, primary_key)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of  
+rows. A row is a simple list of attribute values. The header (third parameter) 
+supplies a list of the attribute names for these values</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#update_from_transaction/2">update_from_transaction(entity_map, transaction)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and the datoms in    
+a <a href="DatomicTransaction.html"><code class="inline">DatomicTransaction</code></a>.  These are passed to the <code class="inline">update</code> function (see the 
+documentation on that function)</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#values/1">values(entity_map)</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Returns all entities from the EntityMap, in a list</p>
+</div>
+  
+</div>
+
+  </div>
+
+
+          
+
+          
+
+        </section>
+      
+
+      
+        <section id="types" class="types details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#types">
+              <i class="icon-link"></i>
+            </a>
+            Types
+          </h1>
+          <div class="types-list">
+            <div id="t:aggregate/0" class="type-detail">
+  <pre><code class="elixir"><a href="#t:aggregate/0">aggregate</a> :: {module, map}</code></pre>
+  
+</div>
+<div id="t:entity_map_option/0" class="type-detail">
+  <pre><code class="elixir"><a href="#t:entity_map_option/0">entity_map_option</a> ::
+  {atom, term} |
+  {atom, <a href="http://elixir-lang.org/docs/stable/elixir/MapSet.html#t:t/0">MapSet.t</a>} |
+  {atom, <a href="#t:aggregate/0">aggregate</a>}</code></pre>
+  
+</div>
+<div id="t:t/0" class="type-detail">
+  <pre><code class="elixir"><a href="#t:t/0">t</a> :: %DatomicGenServer.EntityMap{aggregate_field_to_raw_attribute: map, aggregator: (DataTuple.t -> term), cardinality_many: <a href="http://elixir-lang.org/docs/stable/elixir/MapSet.html#t:t/0">MapSet.t</a>, index_by: term, inner_map: map, raw_data: map}</code></pre>
+  
+</div>
+
+          </div>
+        </section>
+      
+
+      
+        <section id="functions" class="details-list">
+          <h1 class="section-heading">
+            <a class="hover-link" href="#functions">
+              <i class="icon-link"></i>
+            </a>
+            Functions
+          </h1>
+          <div class="detail" id="aggregate_by/3">
+  <div class="detail-header">
+    <a href="#aggregate_by/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">aggregate_by(entity_map, aggregate, new_index \\ nil)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">aggregate_by(EntityMap.t, <a href="#t:aggregate/0">aggregate</a>, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> containing the same underlying data as the supplied
+<code class="inline">EntityMap</code>, but with the entity attributes contained in the given struct.
+The optional third argument is an atom representing the name of one of the 
+fields in the struct, whose values will be the keys in the returned <code class="inline">EntityMap</code>.</p>
+<p>The second argument, an “aggregate”, is a pair whose first element is a 
+module (i.e., the name of a struct), and whose second element is a map 
+for translating the keys of the underlying un-aggregated attributes into
+fields of the struct. The translation map only requires entries for fields
+that need to be translated; fields having the same name as the underlying
+attribute keys do not need to be in the translation table.</p>
+<p>By default the returned <code class="inline">EntityMap</code> uses the same index as the supplied 
+<code class="inline">EntityMap</code>; if you do not supply an index key, be sure the existing index
+key is a field in the new struct as well.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+new_result_struct = {TestPerson2, %{identifier: :id}}
+re_aggregated = EntityMap.aggregate_by(entity_map, new_result_struct)
+
+EntityMap.get(re_aggregated, :karina_jones)
+  =&gt; %TestPerson2{age: 64, id: :karina_jones}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="delete/2">
+  <div class="detail-header">
+    <a href="#delete/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">delete(entity_map, index_key)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">delete(map, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> which is the supplied <code class="inline">EntityMap</code> with the entry for a 
+specific index key deleted. If the <code class="inline">EntityMap</code> is not indexed, the entity ID is 
+used. If the key does not exist, the <code class="inline">EntityMap</code> is returned unchanged.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: true}
+
+entity_map = EntityMap.new([d1, d2, d3, d4])
+
+result = EntityMap.delete(entity_map, 0)
+
+EntityMap.get(result, 0)
+  =&gt; nil</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="e_key/0">
+  <div class="detail-header">
+    <a href="#e_key/0" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">e_key()</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">e_key :: :"datom/e"</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    
+  </section>
+</div>
+<div class="detail" id="equal?/2">
+  <div class="detail-header">
+    <a href="#equal?/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">equal?(entity_map1, entity_map2)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">equal?(EntityMap.t, EntityMap.t) :: boolean</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns true if two EntityMaps contain equal aggregated data maps as well as 
+the same underlying data.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+
+new_map = EntityMap.new([d1, d2, d3, d4])
+new_map2 = EntityMap.new([d1, d2, d3, d4])
+
+EntityMap.equal?(new_map, new_map2)
+  =&gt; true</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="from_records/3">
+  <div class="detail-header">
+    <a href="#from_records/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">from_records(record_maps_to_add, primary_key, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">from_records([map] | <a href="http://elixir-lang.org/docs/stable/elixir/MapSet.html#t:t/0">MapSet.t</a>, term, [<a href="#t:entity_map_option/0">entity_map_option</a>]) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Creates a new <code class="inline">EntityMap</code> from a list of records. A record is a map of attribute 
+names to values. </p>
+<p>One of those attribute keys must point to the entity’s primary key — i.e., 
+the same value that would appearin the <code class="inline">e</code> value of a corresponding datom or 
+<code class="inline">DataTuple</code>. This key should be supplied as the second parameter to the function.
+By default, if the <code class="inline">EntityMap</code> does not aggregate the attributes into a struct, 
+the attribute map will contain an extra field :”datom/e” whose value is the entity 
+ID.</p>
+<p>Note that the incoming records may include data for multiple different types of 
+entities.</p>
+<p>The following options are supported:</p>
+<p><code class="inline">:cardinality_many</code> - the name or names of attribute keys that correspond to
+<code class="inline">cardinality/many</code> attributes. If you have such attributes in your data, this
+option is required. The value for this option may be a single value, a list, or
+a set. The name should be the name of the attribute on the <em>incoming</em> record,
+irrespective of any aggregation. The value for a cardinality many attribute
+on an incoming record should be a set or a list.</p>
+<p><code class="inline">:aggregate_into</code> - this should be a pair, the first element of which is a
+module (i.e., the struct you wish to use to aggregate results) and the second
+of which is a map from keys in the record to fields of the struct. It is 
+not necessary to map keys that have the same name as fields in the struct, but
+only keys that need to be translated. The aggregator is stored with the entity 
+map; it is assumed that all the DataTuples or records that you will be adding 
+or removing later have the same relevant attributes and so will be aggregated
+the same way.</p>
+<p><code class="inline">:index_by</code> - if you wish to use something other than the entity ID as the key
+for the <code class="inline">EntityMap</code>, specify the attribute name here. If you are aggregating
+the map into a struct, this should be the name of the field in the struct
+rather than the name of the attribute key in the record used to construct the
+<code class="inline">EntityMap</code>.</p>
+<h2>Example</h2>
+<pre><code class="elixir">  d1 = %{eid: 1, unique_name: :bill_smith, name: &quot;Bill Smith&quot;, age: 32}
+  d2 = %{eid: 2, unique_name: :karina_jones, name: &quot;Karina Jones&quot;, age: 64}
+
+  result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+  entity_map = EntityMap.from_records([d1, d2], :eid,  
+                cardinality_many: [:name], 
+                index_by: :id, 
+                aggregate_into: result_struct)
+
+  EntityMap.get(entity_map, :karina_jones)
+    =&gt; %TestPerson{age: 64, id: :karina_jones, names: #MapSet&lt;[&quot;Karina Jones&quot;]&gt;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="from_rows/4">
+  <div class="detail-header">
+    <a href="#from_rows/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">from_rows(rows_to_add, header, primary_key, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">from_rows([list] | <a href="http://elixir-lang.org/docs/stable/elixir/MapSet.html#t:t/0">MapSet.t</a>, list, term, [<a href="#t:entity_map_option/0">entity_map_option</a>]) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Creates a new <code class="inline">EntityMap</code> from a list of rows. A row is a simple list of 
+attribute values. The header (second parameter) supplies a list of the attribute 
+names for these values.</p>
+<p>One of those attribute keys must point to the entity’s primary key — i.e., 
+the same value that would appearin the <code class="inline">e</code> value of a corresponding datom or 
+<code class="inline">DataTuple</code>. This key should be supplied as the third parameter to the function.
+By default, if the <code class="inline">EntityMap</code> does not aggregate the attributes into a struct, 
+the attribute map will contain an extra field :”datom/e” whose value is the entity 
+ID.</p>
+<p>Note that the incoming records may include data for multiple different types of 
+entities.</p>
+<p>The following options are supported:</p>
+<p><code class="inline">:cardinality_many</code> - the name or names of attribute keys that correspond to
+<code class="inline">cardinality/many</code> attributes. If you have such attributes in your data, this
+option is required. The value for this option may be a single value, a list, or
+a set. The name should be the name of the attribute on the <em>incoming</em> row header,
+irrespective of any aggregation. The value for a cardinality many attribute
+on an incoming row should be a set or a list.</p>
+<p><code class="inline">:aggregate_into</code> - this should be a pair, the first element of which is a
+module (i.e., the struct you wish to use to aggregate results) and the second
+of which is a map from keys in the record to fields of the struct. It is 
+not necessary to map keys that have the same name as fields in the struct, but
+only keys that need to be translated. The aggregator is stored with the entity 
+map; it is assumed that all the DataTuples or records that you will be adding 
+or removing later have the same relevant attributes and so will be aggregated
+the same way.</p>
+<p><code class="inline">:index_by</code> - if you wish to use something other than the entity ID as the key
+for the <code class="inline">EntityMap</code>, specify the attribute name here. If you are aggregating
+the map into a struct, this should be the name of the field in the struct
+rather than the name of the attribute key in the header.</p>
+<h2>Example</h2>
+<pre><code class="elixir">  header = [:eid, :unique_name, :name, :age]
+
+  d1 = [1, :bill_smith, &quot;Bill Smith&quot;, 32]
+  d2 = [2, :karina_jones, &quot;Karina Jones&quot;, 64]
+
+  result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+  entity_map = EntityMap.from_rows([d1, d2], header, :eid,  
+                cardinality_many: [:name], 
+                index_by: :id, 
+                aggregate_into: result_struct)
+
+  EntityMap.get(entity_map, :karina_jones)
+    =&gt; %TestPerson{age: 64, id: :karina_jones, names: #MapSet&lt;[&quot;Karina Jones&quot;]&gt;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="from_transaction/2">
+  <div class="detail-header">
+    <a href="#from_transaction/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">from_transaction(transaction, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">from_transaction(<a href="DatomicTransaction.html#t:t/0">DatomicTransaction.t</a>, [<a href="#t:entity_map_option/0">entity_map_option</a>]) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Creates a new <code class="inline">EntityMap</code> from the datoms in a <a href="DatomicTransaction.html"><code class="inline">DatomicTransaction</code></a>. These and 
+the options are passed to the <code class="inline">new</code> function (see the documentation on that
+function).</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d5 = %Datom{e: 3, a: :name, v: &quot;Hartley Stewart&quot;, tx: 0, added: false}
+d6 = %Datom{e: 3, a: :age, v: 44, tx: 0, added: false}
+d7 = %Datom{e: 3, a: :identifier, v: :hartley_stewart, tx: 0, added: false}
+
+transaction = %DatomicTransaction{
+  basis_t_before: 1000, 
+  basis_t_after: 1001, 
+  added_datoms: [d1, d2, d3], 
+  retracted_datoms: [d5, d6, d7], 
+  tempids: %{-1432323 =&gt; 64}
+}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+
+result = EntityMap.from_transaction(transaction, 
+          cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+
+EntityMap.get_attr(result, :bill_smith, :age)
+  =&gt; 32</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="get/3">
+  <div class="detail-header">
+    <a href="#get/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">get(entity_map, index_key, default \\ nil)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">get(EntityMap.t, term, term) :: term</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns the value for a specific index key. If the key is not present, returns 
+the default value (or nil if there is no default value).</p>
+<p>If the <code class="inline">EntityMap</code> is not indexed, the supplied key should be an entity ID. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+entity_map = EntityMap.new([d1, d2])
+
+EntityMap.get(entity_map, 0)
+  =&gt; %{attr1: :value, attr2: :value2, &quot;datom/e&quot;: 0}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="get_attr/4">
+  <div class="detail-header">
+    <a href="#get_attr/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">get_attr(entity_map, index_key, attr_key, default \\ nil)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">get_attr(EntityMap.t, term, term, term) :: term</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns the value for a specific index key and attribute key.  If either key is
+not present in the <code class="inline">EntityMap</code> the default value is returned (or nil if no 
+default value is supplied).</p>
+<p>If the <code class="inline">EntityMap</code> is not indexed, the supplied key should be an entity ID. If 
+the <code class="inline">EntityMap</code> is aggregated, the attribute key is the name of the field in 
+the aggregated struct; the attribute names in the raw data are not referenced.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+entity_map = EntityMap.new([d1, d2])
+
+EntityMap.get_attr(entity_map, 0, :attr2)
+  =&gt; :value2</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="has_key?/2">
+  <div class="detail-header">
+    <a href="#has_key?/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">has_key?(entity_map, index_key)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">has_key?(EntityMap.t, term) :: boolean</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns a boolean indicating whether a given index key exists in the supplied 
+<code class="inline">EntityMap</code>.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+
+entity_map = EntityMap.new([d1, d2])
+
+EntityMap.has_key?(entity_map, 1)
+  =&gt; false</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="index_by/2">
+  <div class="detail-header">
+    <a href="#index_by/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">index_by(entity_map, attribute)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">index_by(EntityMap.t, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns a new EntityMap whose keys are values of a certain attribute or struct 
+field rather than the entity IDs.</p>
+<p>If a given entity does not have a value for the index attribute, that entity
+will not be accessible in the indexed <code class="inline">EntityMap</code>. This function is applied 
+post-aggregation, so you can use the name of a field in your struct. If there
+is a field in the underlying data that is not a field on the aggregating struct, 
+you cannot use it as an index.</p>
+<p>This function also assumes that the value you are indexing on is unique; otherwise, 
+you will lose entities if more than one has the same attribute. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+re_indexed = EntityMap.index_by(entity_map, :age)
+
+EntityMap.get(re_indexed, 64)
+  =&gt; %TestPerson{age: 64, id: :karina_jones, names: #MapSet&lt;[&quot;Karina Jones&quot;]&gt;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="keys/1">
+  <div class="detail-header">
+    <a href="#keys/1" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">keys(entity_map)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">keys(EntityMap.t) :: [term]</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns all index keys from the map, in a list. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], index_by: :identifier)
+
+EntityMap.keys(entity_map)
+  =&gt; [:bill_smith, :karina_jones]</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="new/2">
+  <div class="detail-header">
+    <a href="#new/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">new(data_tuples_to_add \\ [], options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">new([<a href="DatomicGenServer.EntityMap.DataTuple.html#t:t/0">DatomicGenServer.EntityMap.DataTuple.t</a>], [<a href="#t:entity_map_option/0">entity_map_option</a>]) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Creates a new <code class="inline">EntityMap</code> from a list of <code class="inline">DataTuple</code>s. An <code class="inline">EntityMap</code> acts as a
+map of an entity id (or attribute value) to a map of an entity’s attributes.</p>
+<p>The supplied data tuples may have the value <code class="inline">true</code> or <code class="inline">false</code> for the <code class="inline">added</code>
+field, but tuples with a false value are ignored. Note that the incoming 
+data tuples may include data for multiple different types of entities.</p>
+<p>By default, if the attributes are not aggregated into a struct, the attribute
+map will contain an extra field :”datom/e” whose value is the entity ID.</p>
+<p>The following options are supported:</p>
+<p><code class="inline">:cardinality_many</code> - the name or names of attribute keys that correspond to
+<code class="inline">cardinality/many</code> attributes. If you have such attributes in your data, this
+option is required. The value for this option may be a single value, a list, or
+a set. The name should be the name of the attribute on the <em>incoming</em> data,
+irrespective of any aggregation. If a data tuple contains a scalar value for a 
+cardinality many attribute, then that value is added to the set of values for t
+hat attribute. If a data tuple contains a collection as a value for a cardinality 
+many attribute, the values are added to the set of values for that attribute. 
+Note that if a cardinality many attribute is not present in the data tuples for 
+an entity, it will not be present in the resulting attribute map; trying to get 
+its value won’t give you an empty set; it will give you null. </p>
+<p><code class="inline">:aggregate_into</code> - this should be a pair, the first element of which is a
+module (i.e., the struct you wish to use to aggregate results) and the second
+of which is a map from keys in the raw data to fields of the struct. It is 
+not necessary to map keys that have the same name as fields in the struct, but
+only keys that need to be translated. The aggregator is stored with the entity 
+map; it is assumed that all the DataTuples or records that you will be adding 
+or removing later have the same relevant attributes and so will be aggregated  
+the same way.</p>
+<p><code class="inline">:index_by</code> - if you wish to use something other than the entity ID as the key
+for the <code class="inline">EntityMap</code>, specify the attribute name here. If you are aggregating
+the map into a struct, this should be the name of the field in the struct
+rather than the name of the attribute key in the data used to construct the
+<code class="inline">EntityMap</code>.</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :attr1, v: :value, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :attr2, v: :value2, tx: 0, added: true}
+d3 = %Datom{e: 1, a: :attr2, v: :value3, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :attr3, v: :value2, tx: 0, added: false}
+
+entity_map = EntityMap.new([d1, d2, d3, d4])
+
+EntityMap.get_attr(entity_map, 1, :attr2)
+  =&gt; :value3</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="put/3">
+  <div class="detail-header">
+    <a href="#put/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">put(entity_map, record, primary_key)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">put(EntityMap.t, map, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an EntityMap with the given entity added. The supplied entity must
+be in the form of a map of attributes to values, including one attribute that
+specifies the entity ID (i.e., a value that would appear in the <code class="inline">e:</code> field of
+a <a href="Datom.html"><code class="inline">Datom</code></a> or <code class="inline">DataTuple</code>). </p>
+<p>The key of the field containing the entity ID should be passed to the function
+as the third argument. If an entity already exists for a given ID, it will be 
+replaced with the new one. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+entity_map = EntityMap.new([d1, d2, d3], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+new_record = %{eid: 1, identifier: :jim_stewart, name: &quot;Jim Stewart&quot;, age: 23}
+
+result = EntityMap.put(entity_map, new_record, :eid)
+
+EntityMap.get(result, :jim_stewart)
+  =&gt; %TestPerson{age: 23, id: :jim_stewart, names: #MapSet&lt;[&quot;Jim Stewart&quot;]&gt;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="put_attr/5">
+  <div class="detail-header">
+    <a href="#put_attr/5" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">put_attr(entity_map, index_key, attr_key, val, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">put_attr(EntityMap.t, term, term, term, [{atom, boolean}]) ::
+  {:ok, EntityMap.t} |
+  {:error, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>}</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>When successful, returns an <code class="inline">:ok</code> tuple containing an <code class="inline">EntityMap</code> with an updated 
+value for a given entity’s attribute, where the entity is specified by its index 
+key. If either the index or attribute key does not exist, an <code class="inline">:error</code> tuple is
+returned.</p>
+<p>If the <code class="inline">EntityMap</code> is not indexed, the the index key should be the entity ID. 
+If the <code class="inline">EntityMap</code> is aggregated, the attribute key should the name of the field 
+in the aggregated struct; the attribute names in the raw data are not used. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, index_by: :id, aggregate_into: result_struct)
+
+{:ok, updated} = EntityMap.put_attr(entity_map, :karina_jones, :age, 34)
+
+EntityMap.get_attr(updated, :karina_jones, :age)
+  =&gt; 34</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="rename_keys/2">
+  <div class="detail-header">
+    <a href="#rename_keys/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">rename_keys(map, key_rename_map)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">rename_keys(map, map) :: map</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>A utility function that accepts a map and a translation table, and returns a
+new map whose keys have been renamed according to the translation table. </p>
+<h2>Example</h2>
+<pre><code class="elixir">input_map = %{eid: 1, identifier: :jim_stewart, name: &quot;Jim Stewart&quot;, age: 23}
+translation_table = %{eid: :id, identifier: :unique_name}
+
+EntityMap.rename_keys(input_map, translation_table)
+  =&gt; %{age: 23, id: 1, name: &quot;Jim Stewart&quot;, unique_name: :jim_stewart}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="set_defaults/1">
+  <div class="detail-header">
+    <a href="#set_defaults/1" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">set_defaults(options)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">set_defaults([<a href="#t:entity_map_option/0">entity_map_option</a>]) :: [<a href="#t:entity_map_option/0">entity_map_option</a>]</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    
+  </section>
+</div>
+<div class="detail" id="update/2">
+  <div class="detail-header">
+    <a href="#update/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">update(entity_map, data_tuples_to_update)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">update(EntityMap.t, [<a href="DatomicGenServer.EntityMap.DataTuple.html#t:t/0">DatomicGenServer.EntityMap.DataTuple.t</a>]) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of data 
+tuples (both retractions and additions).</p>
+<p>Retractions are applied first. Nil or empty collection values in the data
+tuples to be retracted result in the entire pre-existing value being retracted.
+For cardinality many attributes, scalar values to be retracted are removed from
+the set of pre-existing values; collection values to be retracted are subtracted
+from the pre-existing set.</p>
+<p>Similarly, the addition of <code class="inline">nil</code> or an empty collection removes the attribute
+(for a scalar value) or sets it to the empty collection (for a cardinality
+many value). Otherwise, for cardinality many attributes, scalar values to be
+added are added to the set of pre-existing values; collection values to be
+added are unioned with the pre-existing set.</p>
+<p>After retractions and additions are applied, the map is re-aggregated and 
+re-indexed according to its aggregator and index (if any).</p>
+<h2>Example</h2>
+<pre><code class="elixir">empty_map = EntityMap.new()
+
+d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+
+datoms_to_update = [d1, d2, d3, d4]
+
+result = EntityMap.update(empty_map, datoms_to_update)
+
+EntityMap.get_attr(result, 0, :age)
+  =&gt; 32</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="update_from_records/3">
+  <div class="detail-header">
+    <a href="#update_from_records/3" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">update_from_records(entity_map, record_maps, primary_key)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">update_from_records(EntityMap.t, <a href="http://elixir-lang.org/docs/stable/elixir/Enum.html#t:t/0">Enum.t</a>, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of  
+records. A record is a map of attribute names to values. One of those attribute 
+keys must point to the entity primary key — i.e., the same value that would 
+appear in the <code class="inline">e</code> value of a corresponding datom or DataTuple. This attribute 
+should be passed to the function as the third argument.</p>
+<p>The use of <code class="inline">nil</code> or an empty collection as a value for an attribute removes the 
+attribute (for a scalar value) or sets it to the empty collection (for a 
+cardinality many attribute). Otherwise, any attribute value supplied in a record 
+overwrites the pre-existing value for that attribute; there is no way to 
+add entries to or subtract them from a cardinality many attribute value using  
+records.</p>
+<p>After the map is updated with the new records, it is re-aggregated and re-indexed
+according to the map’s aggregator and index (if any).</p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %{id: 1, attr1: [:value1, :value1a]}
+d2 = %{id: 2, attr2: [:value2]}
+
+initial_map = EntityMap.from_records([d1, d2], :id, cardinality_many: [:attr1])
+
+d5 = %{id: 1, attr1: []}
+d6 = %{id: 2, attr2: :value2a}
+
+result = EntityMap.update_from_records(initial_map, [d5, d6], :id)
+
+EntityMap.get_attr(result, 2, :attr2)
+  =&gt; :value2a</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="update_from_rows/4">
+  <div class="detail-header">
+    <a href="#update_from_rows/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">update_from_rows(entity_map, rows_to_add, header, primary_key)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">update_from_rows(EntityMap.t, [list] | <a href="http://elixir-lang.org/docs/stable/elixir/MapSet.html#t:t/0">MapSet.t</a>, list, term) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and a list of  
+rows. A row is a simple list of attribute values. The header (third parameter) 
+supplies a list of the attribute names for these values.</p>
+<p>One of those attribute keys must point to the entity’s primary key — i.e., 
+the same value that would appearin the <code class="inline">e</code> value of a corresponding datom or 
+<code class="inline">DataTuple</code>. This key should be supplied as the fourth parameter to the function.</p>
+<p>The use of <code class="inline">nil</code> or an empty collection as a value for an attribute removes the 
+attribute (for a scalar value) or sets it to the empty collection (for a 
+cardinality many attribute). Otherwise, any attribute value supplied in a record 
+overwrites the pre-existing value for that attribute; there is no way to 
+add entries to or subtract them from a cardinality many attribute value using  
+records.</p>
+<p>After the map is updated with the new records, it is re-aggregated and re-indexed
+according to the map’s aggregator and index (if any).</p>
+<h2>Example</h2>
+<pre><code class="elixir">header = [:eid, :unique_name, :name, :age]
+
+d1 = [1, :bill_smith, &quot;Bill Smith&quot;, 32]
+d2 = [2, :karina_jones, [&quot;Karina Jones&quot;, &quot;Karen Jones&quot;], 64]
+
+result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+initial_map = EntityMap.from_rows([d1, d2], header, :eid, 
+                cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+
+d3 = [1, :bill_smith, &quot;Bill Smith&quot;, 33]
+d4 = [2, :karina_jones, MapSet.new([&quot;Karen Jones&quot;]), 64]
+
+result = EntityMap.update_from_rows(initial_map, [d3, d4], header, :eid)
+
+EntityMap.get_attr(result, :karina_jones, :names)
+  =&gt; #MapSet&lt;[&quot;Karen Jones&quot;]&gt;</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="update_from_transaction/2">
+  <div class="detail-header">
+    <a href="#update_from_transaction/2" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">update_from_transaction(entity_map, transaction)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">update_from_transaction(EntityMap.t, <a href="DatomicTransaction.html#t:t/0">DatomicTransaction.t</a>) :: EntityMap.t</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns an <code class="inline">EntityMap</code> created from an existing <code class="inline">EntityMap</code> and the datoms in    
+a <a href="DatomicTransaction.html"><code class="inline">DatomicTransaction</code></a>.  These are passed to the <code class="inline">update</code> function (see the 
+documentation on that function).</p>
+<h2>Example</h2>
+<pre><code class="elixir">header = [:eid, :unique_name, :name, :age]
+
+d1 = [0, :bill_smith, &quot;Bill Smith&quot;, 32]
+d2 = [1, :karina_jones, [&quot;Karina Jones&quot;, &quot;Karen Jones&quot;], 64]
+
+result_struct = {TestPerson, %{unique_name: :id, name: :names}}
+
+initial_map = EntityMap.from_rows([d1, d2], header, :eid, 
+                cardinality_many: [:name], index_by: :id, aggregate_into: result_struct)
+
+d3 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: false}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karen Jones&quot;, tx: 0, added: false}
+
+d5 = %Datom{e: 1, a: :name, v: &quot;K. Jones&quot;, tx: 0, added: true}
+d6 = %Datom{e: 2, a: :name, v: &quot;Hartley Stewart&quot;, tx: 0, added: true}
+d7 = %Datom{e: 2, a: :age, v: 44, tx: 0, added: true}
+d8 = %Datom{e: 2, a: :unique_name, v: :hartley_stewart, tx: 0, added: true}
+
+transaction = %DatomicTransaction{
+  basis_t_before: 1000, 
+  basis_t_after: 1001, 
+  retracted_datoms: [d3, d4], 
+  added_datoms: [d5, d6, d7, d8], 
+  tempids: %{-1432323 =&gt; 64}
+}
+
+result = EntityMap.update_from_transaction(initial_map, transaction)
+
+EntityMap.get(result, :karina_jones)
+  =&gt; %TestPerson{age: 64, id: :karina_jones, names: #MapSet&lt;[&quot;K. Jones&quot;, &quot;Karina Jones&quot;]&gt;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="values/1">
+  <div class="detail-header">
+    <a href="#values/1" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">values(entity_map)</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">values(EntityMap.t) :: [term]</code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Returns all entities from the EntityMap, in a list. </p>
+<h2>Example</h2>
+<pre><code class="elixir">d1 = %Datom{e: 0, a: :name, v: &quot;Bill Smith&quot;, tx: 0, added: true}
+d2 = %Datom{e: 0, a: :age, v: 32, tx: 0, added: true}
+d3 = %Datom{e: 0, a: :identifier, v: :bill_smith, tx: 0, added: true}
+d4 = %Datom{e: 1, a: :name, v: &quot;Karina Jones&quot;, tx: 0, added: true}
+d5 = %Datom{e: 1, a: :age, v: 64, tx: 0, added: true}
+d6 = %Datom{e: 1, a: :identifier, v: :karina_jones, tx: 0, added: true}
+
+result_struct = {TestPerson, %{identifier: :id, name: :names}}
+entity_map = EntityMap.new([d1, d2, d3, d4, d5, d6], 
+                cardinality_many: :name, aggregate_into: result_struct)
+
+EntityMap.values(entity_map)
+  =&gt; [%TestPerson{age: 32, id: :bill_smith, names: #MapSet&lt;[&quot;Bill Smith&quot;]&gt;},
+      %TestPerson{age: 64, id: :karina_jones, names: #MapSet&lt;[&quot;Karina Jones&quot;]&gt;}]</code></pre>
+
+  </section>
+</div>
+
+        </section>
+      
+
+      
+
+      
+        <footer class="footer">
+      <p>
+        <span class="line">
+          Built using
+          <a href="https://github.com/elixir-lang/ex_doc" title="ExDoc" rel="help" target="_blank">ExDoc</a> (v0.11.4),
+        </span>
+        <span class="line">
+          designed by
+          <a href="https://twitter.com/dignifiedquire" target="_blank" title="@dignifiedquire">Friedel Ziegelmayer</a>.
+          </span>
+      </p>
+      <button class="night-mode-toggle" />
+    </footer>
+  </div>
+</section>
+</div>
+  <script src="dist/app-6d2e071366.js"></script>
+  </body>
+</html>
+
