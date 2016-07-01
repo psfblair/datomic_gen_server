@@ -43,15 +43,20 @@ If available in Hex, the package can be installed as follows:
   1. You will need to install the Clojure leiningen build tool in order to build
      the Clojure jar with which the application communicates. You will also need
      to have the datomic-pro peer jar installed in a local repository, with a 
-     version matching the one specified in priv/datomic_gen_server_peer/project.clj.
+     version matching the one specified in `priv/datomic_gen_server_peer/project.clj`.
+     
+     You can also specify your credentials for the my.datomic.com repo by
+     creating a `~/.lein/credentials.clj.gpg` file. See the comments in 
+     `priv/datomic_gen_server_peer/project.clj` for more details.
      
      The `mix compile` task includes running `lein uberjar` in the 
-     `priv/datomic_gen_server_peer` directory, and `mix clean` will remove the `target` subdirectory of that directory.
+     `priv/datomic_gen_server_peer` directory, and `mix clean` will remove the 
+     `target` subdirectory of that directory.
 
   2. Add datomic_gen_server to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:datomic_gen_server, "~> 2.0.1"}]
+          [{:datomic_gen_server, "~> 2.1.0"}]
         end
   
   3. You may want to create a config.exs file in your application that adds to 

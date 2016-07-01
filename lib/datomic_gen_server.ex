@@ -463,9 +463,14 @@ defmodule DatomicGenServer do
     Process.flag(:trap_exit, true)
     
     send(self, {:initialize_jvm, db_uri, create?, startup_wait_millis})
-    if maybe_process_identifier do
-      Process.register(self, maybe_process_identifier)
+    case maybe_process_identifier do
+      nil -> nil
+      {:global, identifier} -> :global.register_name(identifier, self)
+      identifier -> Process.register(self, identifier)
     end
+    # if maybe_process_identifier do
+    #   Process.register(self, maybe_process_identifier)
+    # end
     {:ok, %ProcessState{port: nil, message_wait_until_crash: default_message_timeout_millis}}
   end
   
@@ -495,6 +500,9 @@ defmodule DatomicGenServer do
       # Make sure we're only listening for a message back from the port, not some
       # message from a caller that may have gotten in first.
       {^port, {:data, _}} -> {:noreply, %ProcessState{port: port, message_wait_until_crash: state.message_wait_until_crash}}
+      {:EXIT, _, :normal} ->
+        _ = Logger.info("DatomicGenServer #{my_name} port received :normal exit signal; exiting.")
+        exit(:normal)
       {:EXIT, _, _} ->
         _ = Logger.error("DatomicGenServer #{my_name} port exited with error on startup.")
         exit(:port_exited_with_error)
