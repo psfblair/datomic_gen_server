@@ -556,7 +556,7 @@ defmodule DatomicGenServer do
     response = receive do 
       {^port, {:data, b}} -> :erlang.binary_to_term(b) 
     after message_timeout -> 
-      _ = Logger.error("DatomicGenServer #{my_name} port unresponsive with this_msg_timeout #{this_msg_timeout} and message_wait_until_crash #{message_wait_until_crash}")
+      _ = Logger.error("DatomicGenServer #{my_name} port unresponsive with message_wait_until_crash [#{message_wait_until_crash}] and this_msg_timeout [#{this_msg_timeout}]")
       exit(:port_unresponsive)
     end
     
@@ -572,7 +572,7 @@ defmodule DatomicGenServer do
     case response do
       {:ok, response_id, reply} when message_unique_id == response_id -> {:ok, reply}
       {:error, ^sent_message, error} -> {:error, error}
-      _ -> wait_for_reply(port, message_unique_id, (message_timeout - elapsed), this_msg_timeout, message_wait_until_crash)
+      _ -> wait_for_reply(port, sent_message, (message_timeout - elapsed), this_msg_timeout, message_wait_until_crash)
     end
   end
 

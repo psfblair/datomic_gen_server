@@ -1,4 +1,4 @@
-(defproject datomic_gen_server/peer "2.1.1"
+(defproject datomic_gen_server/peer "2.1.2"
   :description "Datomic peer server in Clojure, accepting edn strings which will be sent by Elixir"
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.2.374"]
