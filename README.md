@@ -56,7 +56,7 @@ If available in Hex, the package can be installed as follows:
   2. Add datomic_gen_server to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:datomic_gen_server, "~> 2.1.0"}]
+          [{:datomic_gen_server, "~> 2.1.1"}]
         end
   
   3. You may want to create a config.exs file in your application that adds to 

@@ -503,8 +503,8 @@ defmodule DatomicGenServer do
       {:EXIT, _, :normal} ->
         _ = Logger.info("DatomicGenServer #{my_name} port received :normal exit signal; exiting.")
         exit(:normal)
-      {:EXIT, _, _} ->
-        _ = Logger.error("DatomicGenServer #{my_name} port exited with error on startup.")
+      {:EXIT, _, error} ->
+        _ = Logger.error("DatomicGenServer #{my_name} port exited with error on startup: #{inspect(error)}")
         exit(:port_exited_with_error)
     after startup_wait_millis -> 
       _ = Logger.error("DatomicGenServer #{my_name} port startup timed out after startup_wait_millis: [#{startup_wait_millis}]")
