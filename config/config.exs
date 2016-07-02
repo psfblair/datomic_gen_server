@@ -23,3 +23,8 @@ config :datomic_gen_server, timeout_on_call: 20_000
 
 # Generally you'll want to allow Datomic mocking in test environments only.
 # config :datomic_gen_server, :allow_datomic_mocking? true
+
+# Set this if you want messages to be logged. This will log messages not only
+# The peer will also write messages
+# and exceptions to STDERR.
+# config :datomic_gen_server, :debug.messages? true

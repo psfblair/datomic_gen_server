@@ -112,6 +112,7 @@
 ; as the corresponding tuples.
 (defn- process-message [message database connection db-map real-connection]
   (try
+    (if (Boolean/getBoolean "debug.messages") (.println *err* (str "PEER RECEIVED: [" message "]")) :default)
     (match message
       ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
       [:q message-id edn binding-edn]
@@ -157,6 +158,7 @@
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
     (catch Exception e 
       (let [response [:error message e]]
+        (if (Boolean/getBoolean "debug.messages") (.println *err* (str "PEER EXCEPTION: [" response "]")) :default)
         (new-state response database connection db-map)))))
 
 (defn- exit-loop [in out] 

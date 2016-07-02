@@ -479,7 +479,10 @@ defmodule DatomicGenServer do
     working_directory = "#{:code.priv_dir(:datomic_gen_server)}/datomic_gen_server_peer"
     allow_mocking? = if Application.get_env(:datomic_gen_server, :allow_datomic_mocking?), 
                       do: "-Ddatomic.mocking=true", else: ""
-    command = "java -cp target/peer*standalone.jar #{allow_mocking?} datomic_gen_server.peer #{db_uri} #{create_str}"
+    debug_peer_messages? = if Application.get_env(:datomic_gen_server, :debug_messages?), 
+                           do: "-Ddebug.messages=true", else: ""                      
+    command = "java -cp target/peer*standalone.jar #{allow_mocking?} #{debug_peer_messages?} " <> 
+                "datomic_gen_server.peer #{db_uri} #{create_str}"
     {working_directory, command}
   end
   
@@ -553,6 +556,9 @@ defmodule DatomicGenServer do
   defp wait_for_reply(port, sent_message, message_timeout, this_msg_timeout, message_wait_until_crash) do
     start_time = :os.system_time(:milli_seconds)
     
+    if Application.get_env(:datomic_gen_server, :debug_messages?), 
+       do: Logger.info("Waiting for reply to message #{inspect(sent_message)}")
+       
     response = receive do 
       {^port, {:data, b}} -> :erlang.binary_to_term(b) 
     after message_timeout -> 
@@ -560,19 +566,30 @@ defmodule DatomicGenServer do
       exit(:port_unresponsive)
     end
     
-    message_unique_id = if is_tuple(sent_message) && tuple_size(sent_message) > 1 do
-      elem(sent_message, 1)
-    else
-      nil
-    end
-    
+    if Application.get_env(:datomic_gen_server, :debug_messages?), 
+      do: Logger.info("Received response from peer: [#{inspect(response)}]")
+
     elapsed = :os.system_time(:milli_seconds) - start_time
+    sent_msg_id = message_unique_id(sent_message)    
     
     # Determine if this is a response to the message we were waiting for. If not, recurse
     case response do
-      {:ok, response_id, reply} when message_unique_id == response_id -> {:ok, reply}
-      {:error, ^sent_message, error} -> {:error, error}
+      {:ok, response_id, reply} when response_id == sent_msg_id -> {:ok, reply}
+      {:error, echoed_msg, error} -> 
+        if message_unique_id(echoed_msg) == sent_msg_id do
+          {:error, error}
+        else
+          wait_for_reply(port, sent_message, (message_timeout - elapsed), this_msg_timeout, message_wait_until_crash)
+        end
       _ -> wait_for_reply(port, sent_message, (message_timeout - elapsed), this_msg_timeout, message_wait_until_crash)
+    end
+  end
+  
+  defp message_unique_id(message) do
+    if is_tuple(message) && tuple_size(message) > 1 do
+      elem(message, 1)
+    else
+      nil
     end
   end
 
