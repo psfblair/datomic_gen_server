@@ -27,4 +27,4 @@ config :datomic_gen_server, timeout_on_call: 20_000
 # Set this if you want messages to be logged. This will log messages not only
 # The peer will also write messages
 # and exceptions to STDERR.
-# config :datomic_gen_server, :debug.messages? true
+# config :datomic_gen_server, :debug_messages? true

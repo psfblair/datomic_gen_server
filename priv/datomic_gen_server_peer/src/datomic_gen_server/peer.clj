@@ -179,6 +179,7 @@
                 result (process-message message database active-connection db-map real-connection)]
             (if (some? result)
               (do
+                (if (Boolean/getBoolean "debug.messages") (.println *err* (str "PEER REPLY: [" result "]")) :default)
                 (>! out (result :result))
                 (recur (result :active-db)(result :active-connection)(result :db-snapshots)))
               (exit-loop in out))))))))) ; exit if we get a nil back from process-message.
