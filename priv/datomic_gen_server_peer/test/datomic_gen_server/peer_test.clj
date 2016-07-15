@@ -76,7 +76,7 @@
 (defn- entity-id-for-value [tx-data value]
   (let [datom (some #(if (= (% :v) value) %) tx-data)]
     (datom :e)))
-  
+
 (deftest test-entity
   (testing "Can ask for an entity"
     (>!! in [:transact 4 "[ {:db/id #db/id[:db.part/db]
@@ -417,4 +417,42 @@
       (is (= 1 (count query-result))))
     
     (System/setProperty "datomic.mocking" "false")
+  ))
+
+(deftest test-pull
+  (testing "Can pull an entity"
+    (let [migration-dir (clojure.java.io/file (System/getProperty "user.dir")
+                                                "test" "resources" "migrations")]
+      (>!! in [:migrate 77 (.getPath migration-dir)])
+      (is (= [:ok 77 :migrated] (<!! out))))
+    
+    (let [seed-dir (clojure.java.io/file (System/getProperty "user.dir") "test" "resources" "seed")]
+      (>!! in [:load 78 (.getPath seed-dir)]))
+    (let [seed-result (<!! out)]
+      (is (= (seed-result 0) :ok)))
+
+    (>!! in [:q 79 "[:find ?e :where [?e :category/name]]" '()])
+    (let [query-result (<!! out)
+          entity-ids (->> (read-edn-response query-result) concat flatten)]
+      (is (= (query-result 0) :ok))
+      (is (= (query-result 1) 79))
+      
+      (>!! in [:pull 80 "[*]" (str (first entity-ids))])
+      (let [pull-result (<!! out)
+            the-entity (read-edn-response pull-result)]
+        (is (= (pull-result 0) :ok))
+        (is (= (pull-result 1) 80))
+        (is (= (the-entity :category/name) "Sports"))
+        (is (= (count (the-entity :category/subcategories)) 7))
+        (is (> (-> (the-entity :category/subcategories) first :subcategory/name count) 0)))
+        
+      (>!! in [:pull-many 81 "[*]" (str (into () entity-ids))])
+      (let [pull-result (<!! out)
+            the-first-entity (first (read-edn-response pull-result))]
+        (is (= (pull-result 0) :ok))
+        (is (= (pull-result 1) 81))
+        (is (= (the-first-entity :category/name) "Sports"))
+        (is (= (count (the-first-entity :category/subcategories)) 7))
+        (is (> (-> (the-first-entity :category/subcategories) first :subcategory/name count) 0)))
+    )
   ))

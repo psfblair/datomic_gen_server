@@ -34,6 +34,18 @@
     (binding [*db* database]
       (let [result (->> binding-edn-list (map read-edn) (map eval) (apply datomic/q edn-str) prn-str)]
         result))))
+        
+(defn- pull [database unquoted-pattern-edn-str identifier-edn-str]
+  (let [pattern (read-edn unquoted-pattern-edn-str)
+        identifier (read-edn identifier-edn-str)
+        result (-> (datomic/pull database pattern identifier) prn-str)]
+    result))
+    
+(defn- pull-many [database unquoted-pattern-edn-str identifier-list-edn-str]
+  (let [pattern (read-edn unquoted-pattern-edn-str)
+        identifiers (read-edn identifier-list-edn-str)
+        result (-> (datomic/pull-many database pattern identifiers) prn-str)]
+    result))
 
 (defn- transact [connection edn-str]
   (let [completed-future (datomic/transact connection (read-edn edn-str))]
@@ -117,6 +129,12 @@
       ; IMPORTANT: RETURN MESSAGE ID IF IT IS AVAILABLE
       [:q message-id edn binding-edn]
           (let [response [:ok message-id (q database edn binding-edn)]]
+            (new-state response database connection db-map))
+      [:pull message-id unquoted-pattern-edn identifier-edn]
+          (let [response [:ok message-id (pull database unquoted-pattern-edn identifier-edn)]]
+            (new-state response database connection db-map))
+      [:pull-many message-id unquoted-pattern-edn identifier-list-edn]
+          (let [response [:ok message-id (pull-many database unquoted-pattern-edn identifier-list-edn)]]
             (new-state response database connection db-map))
       [:entity message-id edn attr-names]
           (let [response [:ok message-id (entity database edn attr-names)]]
