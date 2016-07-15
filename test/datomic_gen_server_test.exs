@@ -126,6 +126,57 @@ defmodule DatomicGenServerTest do
       assert Regex.match?(~r/Field #{index}/, transaction_result)
     end) end))
   end
+  
+  test "can pull an entity" do
+    data_to_add = """
+      [ {:db/id #db/id[:db.part/db]
+         :db/ident :person/city
+         :db/valueType :db.type/string
+         :db/cardinality :db.cardinality/one
+         :db/doc \"A person's city\"
+         :db.install/_attribute :db.part/db} ]
+    """
+    {:ok, _} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+    
+    {:ok, entity_id_result} = DatomicGenServer.q(DatomicGenServer, "[:find ?e :where [?e :db/ident :person/city]]")
+    assert Regex.match?(~r/\#\{\[\d+\]\}/, entity_id_result)
+    
+    entity_id = Regex.replace(~r/\#\{\[(\d+)\]\}/, entity_id_result, "\\1")
+
+    {:ok, pull_result} = DatomicGenServer.pull(DatomicGenServer, "[*]", "#{entity_id}")
+    assert Regex.match?(~r/:db\/ident :person\/city/, pull_result)
+    assert Regex.match?(~r/:db\/doc "A person's city"/, pull_result)
+  end
+  
+  test "can pull many entities" do
+    data_to_add = """
+      [ {:db/id #db/id[:db.part/db]
+         :db/ident :person/state
+         :db/valueType :db.type/string
+         :db/cardinality :db.cardinality/one
+         :db/doc \"A person's state\"
+         :db.install/_attribute :db.part/db} ]
+    """
+    {:ok, _} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+    {:ok, entity_id_result} = DatomicGenServer.q(DatomicGenServer, "[:find ?e :where [?e :db/ident :person/state]]")
+    entity_id_1 = Regex.replace(~r/\#\{\[(\d+)\]\}/, entity_id_result, "\\1")
+    
+    data_to_add = """
+      [ {:db/id #db/id[:db.part/db]
+         :db/ident :person/zip
+         :db/valueType :db.type/string
+         :db/cardinality :db.cardinality/one
+         :db/doc \"A person's zip code\"
+         :db.install/_attribute :db.part/db} ]
+    """
+    {:ok, _} = DatomicGenServer.transact(DatomicGenServer, data_to_add)
+
+    {:ok, pull_result} = DatomicGenServer.pull_many(DatomicGenServer, "[*]", "[#{entity_id_1} :person/zip]")
+    assert Regex.match?(~r/:db\/ident :person\/state/, pull_result)
+    assert Regex.match?(~r/:db\/doc "A person's state"/, pull_result)
+    assert Regex.match?(~r/:db\/ident :person\/zip/, pull_result)
+    assert Regex.match?(~r/:db\/doc "A person's zip code"/, pull_result)
+  end
 
   test "can ask for an entity" do
     data_to_add = """

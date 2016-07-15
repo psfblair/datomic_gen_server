@@ -226,6 +226,68 @@ defmodule DatomicGenServer do
   end
   
   @doc """
+  Issues a `pull` call that is passed to the Datomic `pull` API function. 
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is an edn string representing the pattern that is to be passed as the
+  first parameter to `pull` -- you shouldn't need to single-quote this. The third 
+  parameter is an entity identifier (entity id, ident, or lookup ref).
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.pull(DatomicGenServer, "[*]", "123242")
+      
+      => {:ok, "{:db/id 75, :db/ident :person/city, :db/valueType {:db/id 23}, 
+                 :db/cardinality {:db/id 35}, :db/doc \"A person's city\"}\n"}
+      
+  """
+  @spec pull(GenServer.server, String.t, String.t, [send_option]) :: datomic_result
+  def pull(server_identifier, pattern_str, identifier_str, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:pull, msg_unique_id, pattern_str, identifier_str}, options)
+  end
+  
+  @doc """
+  Issues a `pull-many` call that is passed to the Datomic `pull-many` API function. 
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is an edn string representing the pattern that is to be passed as the
+  first parameter to `pull-many` -- you shouldn't need to single-quote this. The  
+  third parameter is a  list of entity identifiers (entity id, ident, or lookup ref).
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      DatomicGenServer.pull_many(DatomicGenServer, "[*]", "[12343 :person/zip]")
+      
+      => {:ok, "[{:db/id 67, :db/ident :person/state, :db/valueType {:db/id 23}, 
+                    :db/cardinality {:db/id 35}, :db/doc \"A person's state\"} 
+                 {:db/id 78, :db/ident :person/zip, :db/valueType {:db/id 23}, 
+                    :db/cardinality {:db/id 35}, :db/doc \"A person's zip code\"}]\n"}
+  """
+  @spec pull_many(GenServer.server, String.t, String.t, [send_option]) :: datomic_result
+  def pull_many(server_identifier, pattern_str, identifiers_str, options \\ []) do
+    msg_unique_id = :erlang.unique_integer([:monotonic])
+    call_server(server_identifier, {:"pull-many", msg_unique_id, pattern_str, identifiers_str}, options)
+  end
+  
+  
+  @doc """
   Issues an `entity` call that is passed to the Datomic `entity` API function. 
   
   The first parameter to this function is the pid or alias of the GenServer process; 
