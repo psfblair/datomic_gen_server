@@ -56,7 +56,7 @@ If available in Hex, the package can be installed as follows:
   2. Add datomic_gen_server to your list of dependencies in `mix.exs`:
 
         def deps do
-          [{:datomic_gen_server, "~> 2.1.4"}]
+          [{:datomic_gen_server, "~> 2.2.4"}]
         end
   
   3. You may want to create a config.exs file in your application that adds to 
@@ -100,7 +100,7 @@ to seed it with test data.
 A second API allows you to interact with Datomic using Elixir data structures as set 
 out in the [Exdn project](http://github.com/psfblair/exdn) for translating between 
 Elixir and edn; this API is exposed by `DatomicGenServer.Db`. The results of query
-functions such as `q` and `entity` are translated back to Elixir data structures 
+functions such as `q` and `pull` are translated back to Elixir data structures 
 using Exdn's "irreversible" data translators, which can also accept converter 
 functions that will transform the data into your own structures or custom formats
 (see the tests for examples). The results of `transact` are returned in a

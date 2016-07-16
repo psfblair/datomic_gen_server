@@ -187,13 +187,36 @@ defmodule DatomicGenServer.Db do
   (or the `db` shortcut below), as well as the forms produced by `as_of` and
   `since` below. These accept transaction times or transaction IDs.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to `GenServer.call`, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `DatomicGenServer.start` or 
-  `DatomicGenServer.start_link`). Note that if the `:client_timeout` is shorter 
-  than the `:message_timeout` value, the call will return an error but the server 
-  will not crash even if the response message is never returned from the Clojure peer.
+  The options keyword list for querying functions accepts as options 
+  `:response_converter` and :edn_tag_handlers, which are supplied to Exdn's 
+  `to_elixir` function. With `:response_converter` you may choose to supply a 
+  function to recursively walk down the edn data tree and convert the data to 
+  structs. Care must be taken when doing pattern matches that patterns don't 
+  accidentally match unexpected parts of the tree. (For example, if Datomic 
+  results are returned in a list of lists, a pattern that matches inner lists 
+  may also match outer ones.)
+  
+  Edn tag handlers allow you to customize what is done with edn tags in the 
+  response. The default handlers are generally sufficient for data returned 
+  from Datomic queries.
+
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
 
 ## Example
 
@@ -235,13 +258,23 @@ defmodule DatomicGenServer.Db do
   The first parameter to this function is the pid or alias of the GenServer process;  
   the second is the transaction data. 
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `DatomicGenServer.start` or 
-  `DatomicGenServer.start_link`). Note that if the `:client_timeout` is shorter 
-  than the `:message_timeout` value, the call will return an error but the server 
-  will not crash even if the response message is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -295,13 +328,36 @@ defmodule DatomicGenServer.Db do
   as its second parameter, and the third is an entity identifier: either an entity 
   id, an ident, or a lookup ref.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list for querying functions accepts as options 
+  `:response_converter` and :edn_tag_handlers, which are supplied to Exdn's 
+  `to_elixir` function. With `:response_converter` you may choose to supply a 
+  function to recursively walk down the edn data tree and convert the data to 
+  structs. Care must be taken when doing pattern matches that patterns don't 
+  accidentally match unexpected parts of the tree. (For example, if Datomic 
+  results are returned in a list of lists, a pattern that matches inner lists 
+  may also match outer ones.)
+  
+  Edn tag handlers allow you to customize what is done with edn tags in the 
+  response. The default handlers are generally sufficient for data returned 
+  from Datomic queries.
+
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -337,22 +393,45 @@ defmodule DatomicGenServer.Db do
     as its second parameter, and the third is a list of entity identifiers, any
     of which may be either an entity id, an ident, or a lookup ref.
     
-    The options keyword list may include a `:client_timeout` option that specifies 
-    the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-    option that specifies how long the GenServer should wait for a response before 
-    crashing (overriding the default value set in `start` or `start_link`). Note 
-    that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-    the call will return an error but the server will not crash even if the message 
-    is never returned from the Clojure peer.
+    The options keyword list for querying functions accepts as options 
+    `:response_converter` and :edn_tag_handlers, which are supplied to Exdn's 
+    `to_elixir` function. With `:response_converter` you may choose to supply a 
+    function to recursively walk down the edn data tree and convert the data to 
+    structs. Care must be taken when doing pattern matches that patterns don't 
+    accidentally match unexpected parts of the tree. (For example, if Datomic 
+    results are returned in a list of lists, a pattern that matches inner lists 
+    may also match outer ones.)
+    
+    Edn tag handlers allow you to customize what is done with edn tags in the 
+    response. The default handlers are generally sufficient for data returned 
+    from Datomic queries.
+
+    The options keyword list may also include a `:client_timeout` option that  
+    specifies the milliseconds timeout passed to `GenServer.call`, and a  
+    `:message_timeout` option that specifies how long the GenServer should wait 
+    for a response before crashing (overriding the default value set in 
+    `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+    `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+    return an error but the server will not crash even if the response message is 
+    never returned from the Clojure peer. 
+    
+    If the client timeout is not supplied, the value is taken from the configured 
+    value of `:timeout_on_call` in the application environment; if that is not 
+    configured, the GenServer default of 5000 is used.
+    
+    If the message timeout is not supplied, the default value supplied at startup 
+    with the option `:default_message_timeout` is used; if this was not specified, 
+    the configured value of `:message_wait_until_crash` in the application 
+    environment is used. If this is also omitted, a value of 5000 is used.
     
   ## Example
     
         Db.pull_many(DatomicGenServer, Db.star, [ id_1, id_2 ])
         
-        # => {ok, %{ Db.ident => :"person/email", 
-                     Db.value_type => Db.type_string, 
-                     Db.cardinality => Db.cardinality_one, 
-                     Db.doc => "A person's email"}}
+        # => {ok, [%{"db/cardinality": %{"db/id": 35}, "db/doc": "A person's state", 
+                    "db/id": 63, "db/ident": :"person/state", "db/valueType": %{"db/id": 23}}, 
+                  %{"db/cardinality": %{"db/id": 35}, "db/doc": "A person's zip code", 
+                    "db/id": 64, "db/ident": :"person/zip", "db/valueType": %{"db/id": 23}}]}
 
     """  
     @spec pull_many(GenServer.server, [Exdn.exdn], [atom | integer], [query_option]) :: {:ok, term} | {:error, term}
@@ -380,13 +459,36 @@ defmodule DatomicGenServer.Db do
   a list of atoms that represent the keys of the attributes you wish to fetch, 
   or `:all` if you want all the entity's attributes. 
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list for querying functions accepts as options 
+  `:response_converter` and :edn_tag_handlers, which are supplied to Exdn's 
+  `to_elixir` function. With `:response_converter` you may choose to supply a 
+  function to recursively walk down the edn data tree and convert the data to 
+  structs. Care must be taken when doing pattern matches that patterns don't 
+  accidentally match unexpected parts of the tree. (For example, if Datomic 
+  results are returned in a list of lists, a pattern that matches inner lists 
+  may also match outer ones.)
+  
+  Edn tag handlers allow you to customize what is done with edn tags in the 
+  response. The default handlers are generally sufficient for data returned 
+  from Datomic queries.
+
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -425,13 +527,23 @@ defmodule DatomicGenServer.Db do
   
   Loading data does not use the Clojure Conformity library and is not idempotent.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
       data_dir = Path.join [System.cwd(), "seed-data"]

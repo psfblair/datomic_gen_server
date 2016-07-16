@@ -5,7 +5,7 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="ExDoc v0.11.4">
-    <title>DatomicGenServer – datomic_gen_server v2.1.4</title>
+    <title>DatomicGenServer – datomic_gen_server v2.2.4</title>
     <link rel="stylesheet" href="dist/app-1e374caa3d.css" />
     <script src="dist/sidebar_items.js"></script>
   </head>
@@ -27,7 +27,7 @@
         datomic_gen_server
       </h1>
       <h2 class="sidebar-projectVersion">
-        v2.1.4
+        v2.2.4
       </h2>
     </div>
     
@@ -59,7 +59,7 @@
 
 
       <h1>
-        <small class="visible-xs">datomic_gen_server v2.1.4</small>
+        <small class="visible-xs">datomic_gen_server v2.2.4</small>
         DatomicGenServer
         
         
@@ -205,6 +205,24 @@ you call either the <code class="inline">reset</code> or <code class="inline">un
 </div>
 <div class="summary-row">
   <div class="summary-signature">
+    <a href="#pull/4">pull(server_identifier, pattern_str, identifier_str, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a <code class="inline">pull</code> call that is passed to the Datomic <code class="inline">pull</code> API function</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
+    <a href="#pull_many/4">pull_many(server_identifier, pattern_str, identifiers_str, options \\ [])</a>
+  </div>
+  
+    <div class="summary-synopsis"><p>Issues a <code class="inline">pull-many</code> call that is passed to the Datomic <code class="inline">pull-many</code> API function</p>
+</div>
+  
+</div>
+<div class="summary-row">
+  <div class="summary-signature">
     <a href="#q/4">q(server_identifier, edn_str, bindings_edn \\ [], options \\ [])</a>
   </div>
   
@@ -293,6 +311,8 @@ a no-op</p>
   <pre><code class="elixir"><a href="#t:datomic_message/0">datomic_message</a> ::
   {:q, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>]} |
   {:transact, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
+  {:pull, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
+  {:"pull-many", integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
   {:entity, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [atom] | :all} |
   {:migrate, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
   {:load, integer, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>} |
@@ -355,13 +375,21 @@ the second is an edn string representing the parameter that is to be passed to
 <code class="inline">entity</code>: either an entity id, an ident, or a lookup ref. The third parameter 
 is a list of atoms that represent the keys of the attributes you wish to fetch, 
 or <code class="inline">:all</code> if you want all the entity’s attributes. </p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.entity(DatomicGenServer, &quot;:person/email&quot;, [:&quot;db/valueType&quot;, :&quot;db/doc&quot;])
 
@@ -399,13 +427,21 @@ is the result of the Datomic <code class="inline">transact</code> API function c
 transaction. If you want this result in a struct, call the wrapper <code class="inline">load</code> 
 function in the <a href="DatomicGenServer.Db.html"><code class="inline">DatomicGenServer.Db</code></a> module.</p>
 <p>Loading data does not use the Clojure Conformity library and is not idempotent.</p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">data_dir = Path.join [System.cwd(), &quot;seed-data&quot;]
 DatomicGenServer.load(DatomicGenServer, data_dir)
@@ -439,13 +475,21 @@ database migration files in edn format.</p>
 the second is the path to the directory containing the migration files. Files
 will be processed in sort order. The Clojure Conformity library is used to keep
 the migrations idempotent. </p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.migrate(DatomicGenServer, Path.join [System.cwd(), &quot;migrations&quot;])
 
@@ -485,17 +529,123 @@ the return value is a tuple of <code class="inline">:ok</code> and the key that 
 <p>The active database can be reverted to the initial snapshot using the <code class="inline">reset</code> 
 function, or can be switched back to use the real, live connection and database
 using the <code class="inline">unmock</code> function.</p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.mock(DatomicGenServer, :&quot;just-migrated&quot;)
 
 =&gt; {:ok, :&quot;just-migrated&quot;}</code></pre>
+
+  </section>
+</div>
+<div class="detail" id="pull/4">
+  <div class="detail-header">
+    <a href="#pull/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">pull(server_identifier, pattern_str, identifier_str, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">pull(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a <code class="inline">pull</code> call that is passed to the Datomic <code class="inline">pull</code> API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is an edn string representing the pattern that is to be passed as the
+first parameter to <code class="inline">pull</code> — you shouldn’t need to single-quote this. The third 
+parameter is an entity identifier (entity id, ident, or lookup ref).</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
+<h2>Example</h2>
+<pre><code class="elixir">DatomicGenServer.pull(DatomicGenServer, &quot;[*]&quot;, &quot;123242&quot;)
+
+=&gt; {:ok, &quot;{:db/id 75, :db/ident :person/city, :db/valueType {:db/id 23}, 
+           :db/cardinality {:db/id 35}, :db/doc &quot;A person&#39;s city&quot;}</code></pre>
+<p>“}</p>
+
+  </section>
+</div>
+<div class="detail" id="pull_many/4">
+  <div class="detail-header">
+    <a href="#pull_many/4" class="detail-link" title="Link to this function">
+      <i class="icon-link"></i>
+    </a>
+    <span class="signature">pull_many(server_identifier, pattern_str, identifiers_str, options \\ [])</span>
+      
+  </div>
+  
+    <div class="specs">
+      <h4 class="specs-title">Specs</h4>
+      <div class="specs-list">
+        
+          <pre><code class="elixir">pull_many(<a href="http://elixir-lang.org/docs/stable/elixir/GenServer.html#t:server/0">GenServer.server</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, <a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>, [<a href="#t:send_option/0">send_option</a>]) :: <a href="#t:datomic_result/0">datomic_result</a></code></pre>
+        
+      </div>
+    </div>
+  
+  <section class="docstring">
+    <p>Issues a <code class="inline">pull-many</code> call that is passed to the Datomic <code class="inline">pull-many</code> API function. </p>
+<p>The first parameter to this function is the pid or alias of the GenServer process; 
+the second is an edn string representing the pattern that is to be passed as the
+first parameter to <code class="inline">pull-many</code> — you shouldn’t need to single-quote this. The  
+third parameter is a  list of entity identifiers (entity id, ident, or lookup ref).</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
+<h2>Example</h2>
+<pre><code class="elixir">DatomicGenServer.pull_many(DatomicGenServer, &quot;[*]&quot;, &quot;[12343 :person/zip]&quot;)
+
+=&gt; {:ok, &quot;[{:db/id 67, :db/ident :person/state, :db/valueType {:db/id 23}, 
+              :db/cardinality {:db/id 35}, :db/doc &quot;A person&#39;s state&quot;} 
+           {:db/id 78, :db/ident :person/zip, :db/valueType {:db/id 23}, 
+              :db/cardinality {:db/id 35}, :db/doc &quot;A person&#39;s zip code&quot;}]</code></pre>
+<p>“}</p>
 
   </section>
 </div>
@@ -531,13 +681,21 @@ bindings are sanitized</strong> and that you are not passing anything that you d
 control. In general, you should prefer the <code class="inline">DatomicGenServer.Db.q/3</code> function
 which accepts data structures and converts them to edn.</p>
 <p>Bindings may include <code class="inline">datomic_gen_server.peer/*db*</code> for the current database.  </p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> 
-option that specifies the milliseconds timeout passed to GenServer.call, and a 
-<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait
-for a response before crashing (overriding the default value set in <code class="inline">start</code> or
-<code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> is shorter than the 
-<code class="inline">:message_timeout</code> value, the call will return an error but the server will
-not crash even if the response message is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">query = &quot;[:find ?c :where [?c :db/doc \&quot;Some docstring that isn&#39;t in the database\&quot;]]&quot;
 DatomicGenServer.q(DatomicGenServer, query)
@@ -575,13 +733,21 @@ the return value is a tuple of <code class="inline">:ok</code> and the key that 
 <p>The database can be switched back to a real connection using the <code class="inline">unmock</code> 
 function. It is also possible to manipulate the mocked database and save that
 new database state in a snapshot using the <code class="inline">mock</code> function.</p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.reset(DatomicGenServer, :&quot;just-migrated&quot;)
 
@@ -615,9 +781,9 @@ to connect, and the second a boolean parameter indicating whether or not to
 create the database if it does not yet exist. </p>
 <p>The options keyword list may include the normal options accepted by <code class="inline">GenServer.start</code>, 
 as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
-milliseconds that the server will wait for a message before crashing. Note that
-if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
-is exceeded.</p>
+milliseconds that the server will wait for a database response before crashing. 
+Note that if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that 
+timeout is exceeded.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.start(
   &quot;datomic:mem://test&quot;, 
@@ -653,9 +819,9 @@ which to connect, and the second a boolean parameter indicating whether or not
 to create the database if it does not yet exist. </p>
 <p>The options keyword list may include the normal options accepted by <code class="inline">GenServer.start_link</code>, 
 as well as a <code class="inline">:default_message_timeout</code> option that controls the default time in 
-milliseconds that the server will wait for a message before crashing. Note that
-if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that timeout
-is exceeded.</p>
+milliseconds that the server will wait for a database response before crashing. 
+Note that if the <code class="inline">:timeout</code> option is provided, the GenServer will crash if that 
+timeout is exceeded.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.start_link(
   &quot;datomic:mem://test&quot;, 
@@ -688,14 +854,22 @@ is exceeded.</p>
 formulated as an edn string. This transaction is passed to the Datomic <code class="inline">transact</code> 
 API function. </p>
 <p>The first parameter to this function is the pid or alias of the GenServer process; 
-the second is the transaction data in edn format. The options keyword list may 
-include a <code class="inline">:client_timeout</code> option that specifies the milliseconds timeout passed 
-to GenServer.call, and a <code class="inline">:message_timeout</code> option that specifies how long the 
-GenServer should wait for a response before crashing (overriding the default 
-value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note that if the <code class="inline">:client_timeout</code> is 
-shorter than the <code class="inline">:message_timeout</code> value, the call will return an error but 
-the server will not crash even if the response message is never returned from 
-the Clojure peer.</p>
+the second is the transaction data in edn format. </p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">data_to_add = &quot;&quot;&quot;
   [ { :db/id #db/id[:db.part/db]
@@ -742,13 +916,21 @@ than a mocked connection. If no mock connection is active, this function is
 a no-op.</p>
 <p>If the call is successful, the return value is a tuple of <code class="inline">:ok</code> and <code class="inline">:unmocked</code>.</p>
 <p>The first parameter to this function is the pid or alias of the GenServer process. </p>
-<p>The options keyword list may include a <code class="inline">:client_timeout</code> option that specifies 
-the milliseconds timeout passed to GenServer.call, and a <code class="inline">:message_timeout</code> 
-option that specifies how long the GenServer should wait for a response before 
-crashing (overriding the default value set in <code class="inline">start</code> or <code class="inline">start_link</code>). Note 
-that if the <code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, 
-the call will return an error but the server will not crash even if the message 
-is never returned from the Clojure peer.</p>
+<p>The options keyword list may also include a <code class="inline">:client_timeout</code> option that  
+specifies the milliseconds timeout passed to <code class="inline">GenServer.call</code>, and a  
+<code class="inline">:message_timeout</code> option that specifies how long the GenServer should wait 
+for a response before crashing (overriding the default value set in 
+<code class="inline">DatomicGenServer.start</code> or <code class="inline">DatomicGenServer.start_link</code>). Note that if the 
+<code class="inline">:client_timeout</code> is shorter than the <code class="inline">:message_timeout</code> value, the call will 
+return an error but the server will not crash even if the response message is 
+never returned from the Clojure peer. </p>
+<p>If the client timeout is not supplied, the value is taken from the configured 
+value of <code class="inline">:timeout_on_call</code> in the application environment; if that is not 
+configured, the GenServer default of 5000 is used.</p>
+<p>If the message timeout is not supplied, the default value supplied at startup 
+with the option <code class="inline">:default_message_timeout</code> is used; if this was not specified, 
+the configured value of <code class="inline">:message_wait_until_crash</code> in the application 
+environment is used. If this is also omitted, a value of 5000 is used.</p>
 <h2>Example</h2>
 <pre><code class="elixir">DatomicGenServer.unmock(DatomicGenServer)
 

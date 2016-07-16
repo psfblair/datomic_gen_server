@@ -76,9 +76,9 @@ defmodule DatomicGenServer do
   
   The options keyword list may include the normal options accepted by `GenServer.start`, 
   as well as a `:default_message_timeout` option that controls the default time in 
-  milliseconds that the server will wait for a message before crashing. Note that
-  if the `:timeout` option is provided, the GenServer will crash if that timeout
-  is exceeded.
+  milliseconds that the server will wait for a database response before crashing. 
+  Note that if the `:timeout` option is provided, the GenServer will crash if that 
+  timeout is exceeded.
   
 ## Example
   
@@ -105,9 +105,9 @@ defmodule DatomicGenServer do
   
   The options keyword list may include the normal options accepted by `GenServer.start_link`, 
   as well as a `:default_message_timeout` option that controls the default time in 
-  milliseconds that the server will wait for a message before crashing. Note that
-  if the `:timeout` option is provided, the GenServer will crash if that timeout
-  is exceeded.
+  milliseconds that the server will wait for a database response before crashing. 
+  Note that if the `:timeout` option is provided, the GenServer will crash if that 
+  timeout is exceeded.
   
 ## Example
   
@@ -155,13 +155,23 @@ defmodule DatomicGenServer do
   
   Bindings may include `datomic_gen_server.peer/*db*` for the current database.  
   
-  The options keyword list may include a `:client_timeout` 
-  option that specifies the milliseconds timeout passed to GenServer.call, and a 
-  `:message_timeout` option that specifies how long the GenServer should wait
-  for a response before crashing (overriding the default value set in `start` or
-  `start_link`). Note that if the `:client_timeout` is shorter than the 
-  `:message_timeout` value, the call will return an error but the server will
-  not crash even if the response message is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -190,14 +200,25 @@ defmodule DatomicGenServer do
   API function. 
   
   The first parameter to this function is the pid or alias of the GenServer process; 
-  the second is the transaction data in edn format. The options keyword list may 
-  include a `:client_timeout` option that specifies the milliseconds timeout passed 
-  to GenServer.call, and a `:message_timeout` option that specifies how long the 
-  GenServer should wait for a response before crashing (overriding the default 
-  value set in `start` or `start_link`). Note that if the `:client_timeout` is 
-  shorter than the `:message_timeout` value, the call will return an error but 
-  the server will not crash even if the response message is never returned from 
-  the Clojure peer.
+  the second is the transaction data in edn format. 
+  
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -235,13 +256,23 @@ defmodule DatomicGenServer do
   first parameter to `pull` -- you shouldn't need to single-quote this. The third 
   parameter is an entity identifier (entity id, ident, or lookup ref).
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -265,13 +296,23 @@ defmodule DatomicGenServer do
   first parameter to `pull-many` -- you shouldn't need to single-quote this. The  
   third parameter is a  list of entity identifiers (entity id, ident, or lookup ref).
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -298,13 +339,23 @@ defmodule DatomicGenServer do
   is a list of atoms that represent the keys of the attributes you wish to fetch, 
   or `:all` if you want all the entity's attributes. 
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -328,13 +379,23 @@ defmodule DatomicGenServer do
   will be processed in sort order. The Clojure Conformity library is used to keep
   the migrations idempotent. 
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -365,13 +426,23 @@ defmodule DatomicGenServer do
   
   Loading data does not use the Clojure Conformity library and is not idempotent.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
       data_dir = Path.join [System.cwd(), "seed-data"]
@@ -403,13 +474,23 @@ defmodule DatomicGenServer do
   function, or can be switched back to use the real, live connection and database
   using the `unmock` function.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -438,13 +519,23 @@ defmodule DatomicGenServer do
   function. It is also possible to manipulate the mocked database and save that
   new database state in a snapshot using the `mock` function.
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
@@ -469,13 +560,23 @@ defmodule DatomicGenServer do
   
   The first parameter to this function is the pid or alias of the GenServer process. 
   
-  The options keyword list may include a `:client_timeout` option that specifies 
-  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
-  option that specifies how long the GenServer should wait for a response before 
-  crashing (overriding the default value set in `start` or `start_link`). Note 
-  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
-  the call will return an error but the server will not crash even if the message 
-  is never returned from the Clojure peer.
+  The options keyword list may also include a `:client_timeout` option that  
+  specifies the milliseconds timeout passed to `GenServer.call`, and a  
+  `:message_timeout` option that specifies how long the GenServer should wait 
+  for a response before crashing (overriding the default value set in 
+  `DatomicGenServer.start` or `DatomicGenServer.start_link`). Note that if the 
+  `:client_timeout` is shorter than the `:message_timeout` value, the call will 
+  return an error but the server will not crash even if the response message is 
+  never returned from the Clojure peer. 
+  
+  If the client timeout is not supplied, the value is taken from the configured 
+  value of `:timeout_on_call` in the application environment; if that is not 
+  configured, the GenServer default of 5000 is used.
+  
+  If the message timeout is not supplied, the default value supplied at startup 
+  with the option `:default_message_timeout` is used; if this was not specified, 
+  the configured value of `:message_wait_until_crash` in the application 
+  environment is used. If this is also omitted, a value of 5000 is used.
   
 ## Example
   
