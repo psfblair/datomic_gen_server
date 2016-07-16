@@ -161,6 +161,66 @@ defmodule DatomicGenServer.DbTest do
     ) 
     assert 1 == Enum.count(after_result2)
   end
+  
+  test "can pull an entity" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/city",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's city",
+        Db.install_attribute => Db.schema_partition
+    }]
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
+
+    entity_id_query = [
+      :find, Db.q?(:e), :where, [Db.q?(:e), Db.ident, :"person/city"]
+    ]
+    
+    {:ok, entity_id_result} = Db.q(DatomicGenServer, entity_id_query)
+    #Set of 1 list of length 1, which contains a list of length 1 which is the entity ID
+    assert Enum.count(entity_id_result) == 1  
+    entity_id = Enum.take(entity_id_result, 1) |> hd |> hd
+    
+    {:ok, pull_result} = Db.pull(DatomicGenServer, Db.star, entity_id)
+    assert Map.get(pull_result, :"db/ident") == :"person/city"
+    assert Map.get(pull_result, :"db/doc") == "A person's city"
+  end
+  
+  test "can pull many entities" do
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/state",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's state",
+        Db.install_attribute => Db.schema_partition
+    }]
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
+    
+    data_to_add = [%{ 
+        Db.id => Db.dbid(Db.schema_partition),
+        Db.ident => :"person/zip",
+        Db.value_type => Db.type_string,
+        Db.cardinality => Db.cardinality_one,
+        Db.doc => "A person's zip code",
+        Db.install_attribute => Db.schema_partition
+    }]
+    {:ok, _} = Db.transact(DatomicGenServer, data_to_add)
+  
+    {:ok, [first_result, second_result]} = Db.pull_many(DatomicGenServer, Db.star, [ :"person/state", :"person/zip" ])
+    
+    if :"person/state" = Map.get(first_result, :"db/ident") do
+      assert Map.get(first_result, :"db/doc") == "A person's state"
+      assert Map.get(second_result, :"db/ident") == :"person/zip"
+      assert Map.get(second_result, :"db/doc") == "A person's zip code"
+    else
+      assert Map.get(second_result, :"db/ident") == :"person/state"
+      assert Map.get(second_result, :"db/doc") == "A person's state"
+      assert Map.get(first_result, :"db/ident") == :"person/zip"
+      assert Map.get(first_result, :"db/doc") == "A person's zip code"
+    end
+  end
 
   test "can ask for an entity" do
     data_to_add = [%{ 

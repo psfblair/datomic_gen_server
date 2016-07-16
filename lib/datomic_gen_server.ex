@@ -43,6 +43,8 @@ defmodule DatomicGenServer do
   """
   @type datomic_message :: {:q, integer, String.t, [String.t]} | 
                            {:transact, integer, String.t} | 
+                           {:pull, integer, String.t, String.t} | 
+                           {:"pull-many", integer, String.t, String.t} | 
                            {:entity, integer, String.t, [atom] | :all} |
                            {:migrate, integer, String.t} |
                            {:load, integer, String.t} |

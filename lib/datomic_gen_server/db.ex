@@ -12,8 +12,10 @@ defmodule DatomicGenServer.Db do
     
 ## Interface functions    
 
-      q(server_identifier, exdn, options \\ [])
+      q(server_identifier, exdn, exdn_bindings, options \\ [])
       transact(server_identifier, exdn, options \\ [])
+      pull(server_identifier, pattern_exdn, identifier_exdn, options \\ [])
+      pull_many(server_identifier, pattern_exdn, identifiers_exdn, options \\ [])
       entity(server_identifier, exdn, attr_names \\ :all, options \\ [])
       load(server_identifier, data_path, options \\ [])
 
@@ -96,6 +98,10 @@ defmodule DatomicGenServer.Db do
       single_scalar
       blank
       collection_binding(placeholder_atom)
+      
+### Patterns for use in `pull`
+
+      star
 
 ### Clauses
 
@@ -146,9 +152,8 @@ defmodule DatomicGenServer.Db do
       #=> {:ok, #MapSet<['A']>}  # ASCII representation of ID 65
       
   """
-  #TODO Use type Exdn.converter in signature instead of (Exdn.exdn -> term)
   @type query_option :: DatomicGenServer.send_option | 
-                        {:response_converter, (Exdn.exdn -> term)} | 
+                        {:response_converter, Exdn.converter} | 
                         {:edn_tag_handlers, [{atom, Exdn.handler}, ...]}
   
   @type datom_map :: %{:e => integer, :a => atom, :v => term, :tx => integer, :added => boolean}
@@ -281,14 +286,98 @@ defmodule DatomicGenServer.Db do
       parse_error -> parse_error
     end
   end
+
+  @doc """
+  Issues a `pull` call to that is passed to the Datomic `pull` API function. 
+  
+  The first parameter to this function is the pid or alias of the GenServer process; 
+  the second is a list representing the pattern that is to be passed to `pull`
+  as its second parameter, and the third is an entity identifier: either an entity 
+  id, an ident, or a lookup ref.
+  
+  The options keyword list may include a `:client_timeout` option that specifies 
+  the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+  option that specifies how long the GenServer should wait for a response before 
+  crashing (overriding the default value set in `start` or `start_link`). Note 
+  that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+  the call will return an error but the server will not crash even if the message 
+  is never returned from the Clojure peer.
+  
+## Example
+  
+      Db.pull(DatomicGenServer, Db.star, entity_id)
+      
+      # => {ok, %{ Db.ident => :"person/email", 
+                   Db.value_type => Db.type_string, 
+                   Db.cardinality => Db.cardinality_one, 
+                   Db.doc => "A person's email"}}
+
+  """  
+  @spec pull(GenServer.server, [Exdn.exdn], atom | integer, [query_option]) :: {:ok, term} | {:error, term}
+  def pull(server_identifier, pattern_exdn, identifier_exdn, options \\ []) do
+    case Exdn.from_elixir(pattern_exdn) do
+      {:ok, pattern_str} -> 
+        case Exdn.from_elixir(identifier_exdn) do
+          {:ok, identifier_str} -> 
+            case DatomicGenServer.pull(server_identifier, pattern_str, identifier_str, options) do          
+              {:ok, reply_str} -> convert_query_response(reply_str, options)
+              error -> error
+            end
+          parse_error -> parse_error
+        end
+      parse_error -> parse_error
+    end    
+  end
+  
+    @doc """
+    Issues a `pull-many` call to that is passed to the Datomic `pull-many` API function. 
+    
+    The first parameter to this function is the pid or alias of the GenServer process; 
+    the second is a list representing the pattern to be passed to `pull-many`
+    as its second parameter, and the third is a list of entity identifiers, any
+    of which may be either an entity id, an ident, or a lookup ref.
+    
+    The options keyword list may include a `:client_timeout` option that specifies 
+    the milliseconds timeout passed to GenServer.call, and a `:message_timeout` 
+    option that specifies how long the GenServer should wait for a response before 
+    crashing (overriding the default value set in `start` or `start_link`). Note 
+    that if the `:client_timeout` is shorter than the `:message_timeout` value, 
+    the call will return an error but the server will not crash even if the message 
+    is never returned from the Clojure peer.
+    
+  ## Example
+    
+        Db.pull_many(DatomicGenServer, Db.star, [ id_1, id_2 ])
+        
+        # => {ok, %{ Db.ident => :"person/email", 
+                     Db.value_type => Db.type_string, 
+                     Db.cardinality => Db.cardinality_one, 
+                     Db.doc => "A person's email"}}
+
+    """  
+    @spec pull_many(GenServer.server, [Exdn.exdn], [atom | integer], [query_option]) :: {:ok, term} | {:error, term}
+    def pull_many(server_identifier, pattern_exdn, identifier_exdns, options \\ []) do
+      case Exdn.from_elixir(pattern_exdn) do
+        {:ok, pattern_str} -> 
+          case Exdn.from_elixir(identifier_exdns) do
+            {:ok, identifiers_str} -> 
+              case DatomicGenServer.pull_many(server_identifier, pattern_str, identifiers_str, options) do          
+                {:ok, reply_str} -> convert_query_response(reply_str, options)
+                error -> error
+              end
+            parse_error -> parse_error
+          end
+        parse_error -> parse_error
+      end    
+    end
   
   @doc """
   Issues an `entity` call to that is passed to the Datomic `entity` API function. 
   
   The first parameter to this function is the pid or alias of the GenServer process; 
-  the second is an edn string representing the parameter that is to be passed to 
-  `entity`: either an entity id, an ident, or a lookup ref. The third parameter 
-  is a list of atoms that represent the keys of the attributes you wish to fetch, 
+  the second is the data representing the parameter to be passed to `entity` as
+  edn: either an entity id, an ident, or a lookup ref. The third parameter is 
+  a list of atoms that represent the keys of the attributes you wish to fetch, 
   or `:all` if you want all the entity's attributes. 
   
   The options keyword list may include a `:client_timeout` option that specifies 
@@ -665,6 +754,15 @@ defmodule DatomicGenServer.Db do
   def collection_binding(placeholder_atom) do
     [ q?(placeholder_atom), {:symbol, :"..."} ]
   end
+  
+  # Patterns for use in `pull`
+  @doc """
+  Convenience shortcut for the star pattern used in `pull` (i.e., `[*]`).
+  """
+  @spec star :: [{:symbol, :"*"}, ...]
+  def star do
+    [ {:symbol, :"*"} ]
+  end
 
   # Clauses
   @doc """
@@ -796,7 +894,9 @@ defmodule DatomicGenServer.Db do
   end
 
   @doc """
-  Convenience shortcut for creating a Datomic pull expression.
+  Convenience shortcut for creating a Datomic pull expression for use in a :find
+  clause. Note that this is not the function to use if you want to call the
+  Datomic `pull` API function.
   
   In Exdn, Clojure lists are represented as tuples with the tag `:list`, so this 
   function allows us not to have to sprinkle that syntax all over the place.
