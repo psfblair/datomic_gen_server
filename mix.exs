@@ -4,7 +4,7 @@ defmodule DatomicGenServer.Mixfile do
   def project do
     [app: :datomic_gen_server,
     # NOTE!! - This package explicitly lists the files to include  - see below under package
-     version: "2.2.4",
+     version: "2.2.5",
      elixir: "~> 1.2",
      description: """
        An Elixir GenServer that communicates with a Clojure Datomic peer running 
