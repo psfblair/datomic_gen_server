@@ -3,6 +3,7 @@
   (:require [clojure.core.async :as async :refer [<! >! <!! go close!]]
             [clojure-erlastic.core :refer [port-connection]]
             [clojure.core.match :refer [match]]
+            [clojure.string :as string]
             [datomic.api :as datomic]
             [datomock.core :as datomock]
             [net.phobot.datomic.migrator :refer [run-migrations]]
@@ -175,7 +176,9 @@
       [:exit] (do (datomic/shutdown true) nil) ; Shuts down Clojure resources as part of JVM shutdown
       nil (do (datomic/shutdown true) nil)) ; Handle close of STDIN - parent is gone
     (catch Exception e 
-      (let [response [:error message e]]
+      (let [error-stack (string/join "\n" (map str (.getStackTrace e)))
+            error-message (str "Error processing message:\n" message "\n" e "\n" error-stack)
+            response [:error message error-message]]
         (if (Boolean/getBoolean "debug.messages") (.println *err* (str "PEER EXCEPTION: [" response "]")) :default)
         (new-state response database connection db-map)))))
 
