@@ -5,36 +5,38 @@ JVM, using clojure-erlastic.
 
 ## Example
 
-    data_to_add = [%{ 
-        Db.id => Db.dbid(Db.schema_partition),
-        Db.ident => :"person/name",
-        Db.value_type => Db.type_string,
-        Db.cardinality => Db.cardinality_one,
-        Db.doc => "A person's name",
-        Db.install_attribute => Db.schema_partition
-    }]
+```elixir
+data_to_add = [%{ 
+    Db.id => Db.dbid(Db.schema_partition),
+    Db.ident => :"person/name",
+    Db.value_type => Db.type_string,
+    Db.cardinality => Db.cardinality_one,
+    Db.doc => "A person's name",
+    Db.install_attribute => Db.schema_partition
+}]
 
-    Db.transact(DatomicGenServer, data_to_add)
+Db.transact(DatomicGenServer, data_to_add)
 
-    # => {:ok, %DatomicGenServer.Db.DatomicTransaction{
-            basis_t_after: 1001, 
-            basis_t_before: 1000, 
-            retracted_datoms: [],
-            added_datoms: [%DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534313, tx: 13194139534313,
-               v: %Calendar.DateTime{abbr: "UTC", day: 14, hour: 5, min: 56, month: 2, sec: 53, std_off: 0, 
-                                     timezone: "Etc/UTC", usec: 400000, utc_off: 0, year: 2016}},
-              %DatomicGenServer.Db.Datom{a: 41, added: true, e: 66, tx: 13194139534313, v: 35},
-              %DatomicGenServer.Db.Datom{a: 62, added: true, e: 66, tx: 13194139534313, v: "A person's name"},
-              %DatomicGenServer.Db.Datom{a: 10, added: true, e: 66, tx: 13194139534313, v: :"person/name"},
-              %DatomicGenServer.Db.Datom{a: 40, added: true, e: 66, tx: 13194139534313, v: 23},
-              %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
-           tempids: %{-9223367638809264705 => 66}}}
+# => {:ok, %DatomicGenServer.Db.DatomicTransaction{
+        basis_t_after: 1001, 
+        basis_t_before: 1000, 
+        retracted_datoms: [],
+        added_datoms: [%DatomicGenServer.Db.Datom{a: 50, added: true, e: 13194139534313, tx: 13194139534313,
+           v: %Calendar.DateTime{abbr: "UTC", day: 14, hour: 5, min: 56, month: 2, sec: 53, std_off: 0, 
+                                 timezone: "Etc/UTC", usec: 400000, utc_off: 0, year: 2016}},
+          %DatomicGenServer.Db.Datom{a: 41, added: true, e: 66, tx: 13194139534313, v: 35},
+          %DatomicGenServer.Db.Datom{a: 62, added: true, e: 66, tx: 13194139534313, v: "A person's name"},
+          %DatomicGenServer.Db.Datom{a: 10, added: true, e: 66, tx: 13194139534313, v: :"person/name"},
+          %DatomicGenServer.Db.Datom{a: 40, added: true, e: 66, tx: 13194139534313, v: 23},
+          %DatomicGenServer.Db.Datom{a: 13, added: true, e: 0, tx: 13194139534313, v: 64}],      
+       tempids: %{-9223367638809264705 => 66}}}
 
-    query = [:find, Db.q?(:c), :where, [Db.q?(:c), :Db.doc, "A person's name"]]
-    
-    Db.q(DatomicGenServer, query)
+query = [:find, Db.q?(:c), :where, [Db.q?(:c), :Db.doc, "A person's name"]]
 
-    # => {:ok, #MapSet<['B']>}  # ASCII representation of ID 66
+Db.q(DatomicGenServer, query)
+
+# => {:ok, #MapSet<['B']>}  # ASCII representation of ID 66
+```
 
 ## Installation
 
@@ -55,9 +57,11 @@ If available in Hex, the package can be installed as follows:
 
   2. Add datomic_gen_server to your list of dependencies in `mix.exs`:
 
-        def deps do
-          [{:datomic_gen_server, "~> 2.2.5"}]
-        end
+    ```elixir
+    def deps do
+      [{:datomic_gen_server, "~> 2.2.5"}]
+    end
+    ```
   
   3. You may want to create a config.exs file in your application that adds to 
      your application environment default values to control the default amount of 
@@ -67,10 +71,12 @@ If available in Hex, the package can be installed as follows:
      
   4. Ensure datomic_gen_server (as well as Logger and Calendar) is started before 
      your application:
-
-        def application do
-          [applications: [:logger, :calendar, :datomic_gen_server]]
-        end
+ 
+    ```elixir
+    def application do
+      [applications: [:logger, :calendar, :datomic_gen_server]]
+    end
+    ```
         
 ## Usage
 
